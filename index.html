@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Реестр земельных проектов</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="page-shell">
+      <section class="registry-view" id="registryView">
+        <div class="registry-toolbar">
+          <div>
+            <h2>Проекты</h2>
+            <p>Каждая строка - отдельный участок. Откройте проект, чтобы заполнить детали.</p>
+          </div>
+          <div class="registry-actions">
+            <input id="searchInput" type="search" placeholder="Поиск по названию, адресу, статусу" />
+            <button class="primary-button" id="newProjectBtn" type="button">+ Новый проект</button>
+            <button class="secondary-button danger" id="deleteSelectedBtn" type="button">Удалить</button>
+            <button class="secondary-button" id="cancelDeleteBtn" type="button" hidden>Отмена</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="project-table" id="projectTable">
+            <thead>
+              <tr>
+                <th class="select-col"></th>
+                <th>Название</th>
+                <th>Адрес</th>
+                <th>Статус</th>
+                <th>Дата создания</th>
+                <th>Ответственный</th>
+                <th>Площадь</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="projectTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="detail-view" id="detailView" hidden>
+        <div class="detail-toolbar">
+          <button class="secondary-button" id="backToRegistryBtn" type="button">Назад к таблице</button>
+          <div class="detail-actions">
+            <button class="secondary-button danger" id="deleteBtn" type="button">Удалить проект</button>
+            <button class="primary-button" id="saveProjectBtn" type="button">Сохранить проект</button>
+          </div>
+        </div>
+
+        <form class="project-form" id="projectForm">
+          <section class="panel hero-panel">
+            <div class="hero-copy">
+              <p class="eyebrow">Карточка проекта</p>
+              <input class="title-input" id="title" name="title" placeholder="Название проекта" required />
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-heading">
+              <h2>Основные данные</h2>
+            </div>
+            <div class="fields-grid">
+              <label>
+                Адрес
+                <input id="address" name="address" placeholder="Адрес или ориентир участка" />
+              </label>
+              <label>
+                Статус
+                <button class="status-select-button" id="statusPickerBtn" type="button">
+                  <span id="statusPickerText">Выбрать статус</span>
+                </button>
+                <div class="status-dropdown" id="statusDropdown" hidden></div>
+                <input id="status" name="status" type="hidden" />
+              </label>
+              <label>
+                Ответственный
+                <input id="responsible" name="responsible" placeholder="Имя сотрудника или отдел" />
+              </label>
+              <label>
+                Площадь
+                <input id="area" name="area" placeholder="Рассчитывается по границам или вводится вручную" />
+              </label>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-heading">
+              <h2>Параметры участка</h2>
+            </div>
+            <div class="section-list" id="sectionList"></div>
+          </section>
+        </form>
+      </section>
+    </main>
+
+    <div class="modal" id="paramModal" hidden>
+      <div class="modal-card">
+        <div class="modal-heading">
+          <div>
+            <p class="eyebrow" id="paramModalEyebrow">Параметр участка</p>
+            <h2 id="paramModalTitle">Заполнение</h2>
+            <p id="paramModalNote"></p>
+          </div>
+          <button class="secondary-button" id="closeParamModalBtn" type="button">Закрыть</button>
+        </div>
+        <div id="paramModalBody"></div>
+      </div>
+    </div>
+
+    <template id="mapModalTemplate">
+      <div>
+        <div class="map-frame" id="mapFrame"></div>
+        <div class="map-actions">
+          <button class="secondary-button" id="drawAreaBtn" type="button">Границы территории</button>
+          <button class="secondary-button danger" id="clearAreaBtn" type="button">Очистить</button>
+          <button class="primary-button" id="saveMapBtn" type="button">Сохранить территорию</button>
+        </div>
+      </div>
+    </template>
+
+    <template id="imagesModalTemplate">
+      <div>
+        <div class="modal-file-toolbar">
+          <label class="file-button">
+            Добавить медиа
+            <input id="imageInput" type="file" accept="image/*,video/*" multiple />
+          </label>
+        </div>
+        <div class="media-grid" id="imageGrid"></div>
+      </div>
+    </template>
+
+    <template id="documentsModalTemplate">
+      <div>
+        <div class="modal-file-toolbar">
+          <label class="file-button">
+            Добавить файлы
+            <input id="documentInput" type="file" multiple />
+          </label>
+        </div>
+        <div class="file-list" id="documentList"></div>
+      </div>
+    </template>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
