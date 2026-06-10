@@ -4,10 +4,98 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Реестр земельных проектов</title>
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260610-10" />
   </head>
   <body>
-    <main class="page-shell">
+    <section class="auth-view" id="authView">
+      <div class="auth-card">
+        <div>
+          <p class="eyebrow">Доступ к системе</p>
+          <h1 id="authTitle">Авторизация</h1>
+          <p id="serverStatus">API не настроен.</p>
+        </div>
+        <div class="auth-tabs">
+          <button class="auth-tab is-active" id="showLoginBtn" type="button">Вход</button>
+          <button class="auth-tab" id="showRegisterBtn" type="button">Регистрация</button>
+        </div>
+        <form class="auth-form-page" id="authForm">
+          <label>
+            Логин
+            <input id="authEmail" type="text" placeholder="Логин или email" autocomplete="username" required />
+          </label>
+          <label>
+            Пароль
+            <input id="authPassword" type="password" placeholder="Пароль" autocomplete="current-password" required />
+          </label>
+          <button class="primary-button" type="submit">Войти</button>
+        </form>
+        <form class="auth-form-page" id="registerForm" hidden>
+          <label>
+            Имя
+            <input id="registerFullName" type="text" placeholder="Имя сотрудника" autocomplete="name" />
+          </label>
+          <label>
+            Email
+            <input id="registerEmail" type="email" placeholder="email@company.com" autocomplete="username" required />
+          </label>
+          <label>
+            Пароль
+            <input id="registerPassword" type="password" placeholder="Пароль" autocomplete="new-password" required />
+          </label>
+          <button class="primary-button" type="submit">Зарегистрироваться</button>
+        </form>
+      </div>
+    </section>
+    <main class="page-shell" id="appShell" hidden>
+      <section class="server-panel">
+        <div>
+          <h2>Сервер</h2>
+          <p id="appServerStatus"></p>
+        </div>
+        <button class="secondary-button" id="signOutBtn" type="button">Выйти</button>
+      </section>
+      <section class="panel cabinet-panel" id="cabinetPanel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Личный кабинет</p>
+            <h2 id="cabinetTitle">Кабинет</h2>
+          </div>
+          <span class="role-badge" id="cabinetRole">user</span>
+        </div>
+        <div class="cabinet-grid">
+          <div class="cabinet-card">
+            <span>Аккаунт</span>
+            <strong id="cabinetUserEmail">-</strong>
+            <small id="cabinetUserName">-</small>
+          </div>
+          <div class="cabinet-card">
+            <span>Проекты</span>
+            <strong id="cabinetProjects">0</strong>
+            <small>доступно в системе</small>
+          </div>
+          <div class="cabinet-card" id="cabinetUsersCard">
+            <span>Пользователи</span>
+            <strong id="cabinetUsers">0</strong>
+            <small>доступно админу</small>
+          </div>
+        </div>
+      </section>
+      <section class="panel user-admin-panel" id="userAdminPanel" hidden>
+        <div class="panel-heading">
+          <h2>Пользователи и роли</h2>
+        </div>
+        <form class="user-create-form" id="createUserForm">
+          <input id="newUserFullName" type="text" placeholder="Имя" />
+          <input id="newUserEmail" type="email" placeholder="Email" required />
+          <input id="newUserPassword" type="password" placeholder="Пароль" required />
+          <select id="newUserRole">
+            <option value="user">user</option>
+            <option value="admin">admin</option>
+          </select>
+          <button class="primary-button" type="submit">Создать</button>
+        </form>
+        <div class="user-list" id="userList"></div>
+      </section>
       <section class="registry-view" id="registryView">
         <div class="registry-toolbar">
           <div>
@@ -125,7 +213,7 @@
       <div>
         <div class="modal-file-toolbar">
           <label class="file-button">
-            Добавить медиа
+            Добавить материал
             <input id="imageInput" type="file" accept="image/*,video/*" multiple />
           </label>
         </div>
@@ -137,7 +225,7 @@
       <div>
         <div class="modal-file-toolbar">
           <label class="file-button">
-            Добавить файлы
+            Добавить документы
             <input id="documentInput" type="file" multiple />
           </label>
         </div>
@@ -145,8 +233,7 @@
       </div>
     </template>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-config.js"></script>
-    <script src="script.js"></script>
+    <script src="api-config.js"></script>
+    <script src="script.js?v=20260610-11"></script>
   </body>
 </html>

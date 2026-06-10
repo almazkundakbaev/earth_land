@@ -1,14 +1,9 @@
 const STORAGE_KEY = "landProjects.v1";
+const API_TOKEN_KEY = "landProjects.apiToken";
 
-const config = window.SUPABASE_CONFIG || {};
-const isSupabaseConfigured =
-  Boolean(config.url) &&
-  Boolean(config.anonKey) &&
-  !config.url.includes("PASTE_") &&
-  !config.anonKey.includes("PASTE_") &&
-  window.supabase;
-const supabaseClient = isSupabaseConfigured ? window.supabase.createClient(config.url, config.anonKey) : null;
-const storageBucket = config.storageBucket || "land-project-files";
+const apiConfig = window.API_CONFIG || {};
+const apiBaseUrl = (apiConfig.baseUrl || "").replace(/\/$/, "");
+const isApiConfigured = Boolean(apiBaseUrl);
 
 const state = {
   projects: [],
@@ -17,7 +12,10 @@ const state = {
   deleteMode: false,
   view: "registry",
   user: null,
-  cloudMode: false,
+  profile: null,
+  serverMode: false,
+  users: [],
+  apiToken: localStorage.getItem(API_TOKEN_KEY) || "",
   saveTimer: null,
   map: {
     centerLat: 43.2389,
@@ -28,16 +26,41 @@ const state = {
     moved: false,
     suppressClickUntil: 0,
   },
+  currentFileItem: null,
 };
 
 const elements = {
-  authPanel: document.querySelector("#authPanel"),
+  authView: document.querySelector("#authView"),
+  appShell: document.querySelector("#appShell"),
   authForm: document.querySelector("#authForm"),
   authEmail: document.querySelector("#authEmail"),
   authPassword: document.querySelector("#authPassword"),
-  cloudStatus: document.querySelector("#cloudStatus"),
+  registerForm: document.querySelector("#registerForm"),
+  registerFullName: document.querySelector("#registerFullName"),
+  registerEmail: document.querySelector("#registerEmail"),
+  registerPassword: document.querySelector("#registerPassword"),
+  authTitle: document.querySelector("#authTitle"),
+  showLoginBtn: document.querySelector("#showLoginBtn"),
+  showRegisterBtn: document.querySelector("#showRegisterBtn"),
+  serverStatus: document.querySelector("#serverStatus"),
+  appServerStatus: document.querySelector("#appServerStatus"),
   signUpBtn: document.querySelector("#signUpBtn"),
   signOutBtn: document.querySelector("#signOutBtn"),
+  cabinetPanel: document.querySelector("#cabinetPanel"),
+  cabinetTitle: document.querySelector("#cabinetTitle"),
+  cabinetRole: document.querySelector("#cabinetRole"),
+  cabinetUserEmail: document.querySelector("#cabinetUserEmail"),
+  cabinetUserName: document.querySelector("#cabinetUserName"),
+  cabinetProjects: document.querySelector("#cabinetProjects"),
+  cabinetUsers: document.querySelector("#cabinetUsers"),
+  cabinetUsersCard: document.querySelector("#cabinetUsersCard"),
+  userAdminPanel: document.querySelector("#userAdminPanel"),
+  createUserForm: document.querySelector("#createUserForm"),
+  newUserFullName: document.querySelector("#newUserFullName"),
+  newUserEmail: document.querySelector("#newUserEmail"),
+  newUserPassword: document.querySelector("#newUserPassword"),
+  newUserRole: document.querySelector("#newUserRole"),
+  userList: document.querySelector("#userList"),
   registryView: document.querySelector("#registryView"),
   detailView: document.querySelector("#detailView"),
   tableBody: document.querySelector("#projectTableBody"),
@@ -82,11 +105,8 @@ const defaultSections = [
     subtitle: "Базовые реквизиты земли",
     items: [
       ["Кадастровый номер", "Официальный ID участка", true],
-      ["Адрес / локация", "Регион, район, ближайший н.п.", true],
-      ["Площадь, га", "Общая и пригодная к освоению", true],
       ["GPS-координаты", "Точка входа + полигон границ", true, false, "map"],
-      ["Категория земли", "Сельхоз / промышл. / турист. и др.", true],
-      ["Целевое назначение", "По документам и фактически", true],
+      ["Категория целевого назначения", "Сельхоз / промышл. / турист. и др.", true],
     ],
   },
   {
@@ -96,7 +116,7 @@ const defaultSections = [
       ["Тип сделки", "Продажа / аренда / партнёрство / СП", true],
       ["Запрашиваемая цена", "За участок / за га / условия", true],
       ["Ожидания партнёра", "Доля, роль, вклад в проект", true],
-      ["Сроки", "Готовность к сделке, дедлайны", true],
+      ["Сроки", "Готовность к сделке, дедлайны", true, false, "deadline"],
     ],
   },
   {
@@ -104,12 +124,12 @@ const defaultSections = [
     subtitle: "Юридическая чистота и статус прав",
     items: [
       ["Документы и файлы", "Загрузка и просмотр всех документов участка", true, false, "documents"],
-      ["Акт на землю (госакт)", "Право собственности или аренды", true],
-      ["Правоустанавливающий документ", "Основание возникновения права"],
-      ["Кадастровый паспорт / план", "Межевание, план участка"],
-      ["Обременения / ограничения", "Залог, арест, сервитут, охр. зоны"],
-      ["Разрешение на использование", "РНИ, ТЭО, ПДП при наличии"],
-      ["Данные собственника", "ФЛ / ЮЛ, БИН/ИИН, история"],
+      ["Акт на землю (госакт)", "Право собственности или аренды", true, false, "documents"],
+      ["Правоустанавливающий документ", "Основание возникновения права", false, false, "documents"],
+      ["Кадастровый паспорт / план", "Межевание, план участка", false, false, "documents"],
+      ["Обременения / ограничения", "Залог, арест, сервитут, охр. зоны", false, false, "documents"],
+      ["Данные собственника", "ФЛ / ЮЛ, БИН/ИИН, история", false, false, "documents"],
+      ["Другое", "Дополнительные правовые документы", false, false, "documents"],
     ],
   },
   {
@@ -117,7 +137,7 @@ const defaultSections = [
     subtitle: "Со стороны предложившего участок",
     items: [
       ["Имя контактного лица", "Собственник / брокер / представитель", true],
-      ["Телефон / мессенджер", "WhatsApp, Telegram предпочтительно", true],
+      ["Телефон", "", true],
       ["Email", "Для документооборота", true],
       ["Организация / роль", "Если юридическое лицо", true],
     ],
@@ -127,9 +147,9 @@ const defaultSections = [
     subtitle: "Фото, видео, схемы",
     items: [
       ["Фото участка", "Общий вид, рельеф, въезд, периметр", true, false, "images"],
-      ["Аэросъёмка / спутник", "Google Maps, 2GIS, дрон при наличии"],
-      ["Схема участка / ситуационный план", "Привязка к окружению, дорогам"],
-      ["Видеообзор", "Проезд, панорама, состояние", false, true],
+      ["Аэросъёмка / спутник", "Google Maps, 2GIS, дрон при наличии", false, false, "images"],
+      ["Схема участка / ситуационный план", "Привязка к окружению, дорогам", false, false, "images"],
+      ["Видеообзор", "Проезд, панорама, состояние", false, true, "images"],
     ],
   },
   {
@@ -172,46 +192,23 @@ const defaultSections = [
 const statusPhases = [
   {
     phase: "Фаза 1 — Входящая заявка",
-    statuses: [
-      ["Новая заявка", "Участок поступил — телефон, мессенджер, рекомендация. Минимум данных: локация, площадь, контакт.", "Входящий"],
-      ["Сбор информации", "Запрашиваем документы, фото, координаты. Заполняем карточку объекта до минимального порога.", "В работе"],
-      ["Первичный скрининг", "Десктоп-анализ: карты, спутник, кадастр, обременения. Оценка соответствия нашим критериям входа.", "Анализ"],
-    ],
+    statuses: ["Входящий", "В работе", "Анализ"],
   },
   {
     phase: "Фаза 2 — Полевая оценка",
-    statuses: [
-      ["Выезд запланирован", "Дата выезда согласована. Назначена команда: кто едет, что проверяет. Чек-лист выезда готов.", "Запланировано"],
-      ["Выезд выполнен", "Полевая инспекция проведена. Заполнен протокол: инфраструктура, рельеф, состояние дорог, фото/видео.", "Завершён"],
-      ["Внутренняя оценка", "Командное обсуждение. Оцениваем потенциал, capex входа, риски, соответствие стратегии ZOLO/KIT.", "Решение"],
-    ],
+    statuses: ["Запланировано", "Завершён", "Решение"],
   },
   {
     phase: "Фаза 3 — Коммерческое согласование",
-    statuses: [
-      ["Интерес подтверждён", "Команда приняла решение двигаться. Собственнику направлено намерение о переговорах.", "Активно"],
-      ["Переговоры по условиям", "Обсуждаем цену, формат сделки, долю, этапность платежей, обязательства сторон.", "Переговоры"],
-      ["Условия согласованы", "Term sheet или протокол о намерениях подписан. Ключевые параметры зафиксированы письменно.", "Согласовано"],
-      ["Due diligence", "Юридическая проверка: чистота прав, отсутствие обременений, налоговые задолженности, история переходов права.", "Проверка"],
-    ],
+    statuses: ["Активно", "Переговоры", "Согласовано", "Проверка"],
   },
   {
     phase: "Фаза 4 — Юридическое оформление",
-    statuses: [
-      ["Подготовка договора", "Юрист готовит проект договора. Согласование редакций между сторонами.", "Подготовка"],
-      ["Согласование договора", "Правки, протоколы разногласий. Финальная редакция утверждена обеими сторонами.", "Согласование"],
-      ["Нотариальное удостоверение", "Договор удостоверяется нотариусом. При необходимости — оценка, ГАСК, разрешения акимата.", "У нотариуса"],
-      ["Государственная регистрация", "Подача в ЦОН / ЕНИС. Регистрация перехода права. Получение выписки из реестра.", "Регистрация"],
-    ],
+    statuses: ["Подготовка", "Согласование", "У нотариуса", "Регистрация"],
   },
   {
     phase: "Финальные статусы",
-    statuses: [
-      ["Сделка закрыта", "Право зарегистрировано, расчёты завершены. Участок переходит в портфель / разработку концепции.", "Закрыто"],
-      ["Отклонено", "Не прошёл скрининг, выезд или DD. Причина зафиксирована.", "Отказ"],
-      ["Заморожено", "Потенциал есть, но сейчас не приоритет. Дата повторного рассмотрения установлена.", "Пауза"],
-      ["Сделка сорвалась", "На этапе договора или регистрации. Причина: риски правовые, финансовые, позиция собственника.", "Сорвалась"],
-    ],
+    statuses: ["Закрыто", "Отказ", "Пауза", "Сорвалась"],
   },
 ];
 
@@ -220,18 +217,9 @@ init();
 async function init() {
   bindEvents();
 
-  if (supabaseClient) {
-    const { data } = await supabaseClient.auth.getSession();
-    state.user = data.session?.user || null;
-    state.cloudMode = Boolean(state.user);
-
-    supabaseClient.auth.onAuthStateChange(async (_event, session) => {
-      state.user = session?.user || null;
-      state.cloudMode = Boolean(state.user);
-      await loadInitialProjects();
-      updateAuthState();
-      render();
-    });
+  await loadCurrentUserProfile();
+  if (state.profile?.role === "admin") {
+    await loadUsers();
   }
 
   await loadInitialProjects();
@@ -243,6 +231,18 @@ function bindEvents() {
   elements.authForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
     await signIn();
+  });
+
+  elements.registerForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await registerUser();
+  });
+
+  elements.showLoginBtn?.addEventListener("click", () => setAuthTab("login"));
+  elements.showRegisterBtn?.addEventListener("click", () => setAuthTab("register"));
+  elements.createUserForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await createUserFromAdmin();
   });
 
   elements.signUpBtn?.addEventListener("click", signUp);
@@ -260,7 +260,7 @@ function bindEvents() {
     renderProjectTable();
     persistProject(project).catch((error) => {
       console.error(error);
-      alert("Проект добавлен в таблицу, но пока не сохранился в облако. Проверьте подключение Supabase.");
+      alert("Проект добавлен в таблицу, но пока не сохранился на сервер. Проверьте подключение API.");
     });
   });
 
@@ -335,63 +335,258 @@ function bindEvents() {
 }
 
 async function signIn() {
-  if (!supabaseClient) {
-    alert("Supabase еще не настроен. Вставьте URL и anon key в supabase-config.js.");
+  const login = elements.authEmail.value.trim();
+  const password = elements.authPassword.value;
+
+  if (login === "123" && password === "123") {
+    activateTestAdmin();
+    await loadInitialProjects();
+    updateAuthState();
+    render();
     return;
   }
 
-  const { error } = await supabaseClient.auth.signInWithPassword({
-    email: elements.authEmail.value.trim(),
-    password: elements.authPassword.value,
-  });
+  if (!isApiConfigured) {
+    alert("API еще не настроен. Вставьте адрес backend в api-config.js.");
+    return;
+  }
 
-  if (error) {
+  try {
+    const data = await apiRequest("/auth/login", {
+      method: "POST",
+      body: {
+        email: login,
+        password,
+      },
+    });
+
+    state.apiToken = data.token;
+    localStorage.setItem(API_TOKEN_KEY, data.token);
+    state.user = data.user;
+    state.profile = data.user;
+    state.serverMode = true;
+    await loadUsers();
+    await loadInitialProjects();
+    updateAuthState();
+    render();
+  } catch (error) {
     alert(error.message);
   }
 }
 
 async function signUp() {
-  if (!supabaseClient) {
-    alert("Supabase еще не настроен. Вставьте URL и anon key в supabase-config.js.");
-    return;
-  }
+  alert("Создание пользователей выполняет администратор через backend API.");
+}
 
-  const { error } = await supabaseClient.auth.signUp({
-    email: elements.authEmail.value.trim(),
-    password: elements.authPassword.value,
-  });
+function activateTestAdmin() {
+  const admin = {
+    id: "test-admin",
+    email: "123",
+    full_name: "Тестовый админ",
+    role: "admin",
+    is_active: true,
+  };
 
-  if (error) {
-    alert(error.message);
-    return;
-  }
-
-  alert("Аккаунт создан. Если в Supabase включено подтверждение email, подтвердите почту и войдите.");
+  state.apiToken = "";
+  state.user = admin;
+  state.profile = admin;
+  state.serverMode = false;
+  state.users = [admin];
 }
 
 async function signOut() {
-  if (supabaseClient) {
-    await supabaseClient.auth.signOut();
+  state.apiToken = "";
+  state.user = null;
+  state.profile = null;
+  state.serverMode = false;
+  state.users = [];
+  localStorage.removeItem(API_TOKEN_KEY);
+  await loadInitialProjects();
+  updateAuthState();
+  render();
+}
+
+function setAuthTab(tab) {
+  const isRegister = tab === "register";
+
+  if (elements.authForm) {
+    elements.authForm.hidden = isRegister;
+  }
+  if (elements.registerForm) {
+    elements.registerForm.hidden = !isRegister;
+  }
+  if (elements.authTitle) {
+    elements.authTitle.textContent = isRegister ? "Регистрация" : "Авторизация";
+  }
+  elements.showLoginBtn?.classList.toggle("is-active", !isRegister);
+  elements.showRegisterBtn?.classList.toggle("is-active", isRegister);
+}
+
+async function registerUser() {
+  if (!isApiConfigured) {
+    alert("API еще не настроен. Вставьте адрес backend в api-config.js.");
+    return;
+  }
+
+  try {
+    const data = await apiRequest("/auth/register", {
+      method: "POST",
+      body: {
+        fullName: elements.registerFullName.value.trim(),
+        email: elements.registerEmail.value.trim(),
+        password: elements.registerPassword.value,
+      },
+    });
+
+    state.apiToken = data.token;
+    localStorage.setItem(API_TOKEN_KEY, data.token);
+    state.user = data.user;
+    state.profile = data.user;
+    state.serverMode = true;
+    state.users = [];
+    elements.registerForm.reset();
+    await loadInitialProjects();
+    updateAuthState();
+    render();
+  } catch (error) {
+    alert(error.message);
   }
 }
 
+async function loadCurrentUserProfile() {
+  state.profile = null;
+
+  if (!isApiConfigured || !state.apiToken) {
+    return;
+  }
+
+  try {
+    const data = await apiRequest("/auth/me");
+    state.user = data.user;
+    state.profile = data.user;
+    state.serverMode = true;
+  } catch (error) {
+    console.error(error);
+    state.apiToken = "";
+    state.user = null;
+    state.profile = null;
+    state.serverMode = false;
+    localStorage.removeItem(API_TOKEN_KEY);
+  }
+}
+
+async function loadUsers() {
+  if (!isApiConfigured || state.profile?.role !== "admin") {
+    state.users = [];
+    return;
+  }
+
+  try {
+    const data = await apiRequest("/users");
+    state.users = data.users || [];
+  } catch (error) {
+    console.error(error);
+    state.users = [];
+  }
+}
+
+async function createUserFromAdmin() {
+  if (state.profile?.role !== "admin") {
+    return;
+  }
+
+  if (!state.serverMode) {
+    state.users.unshift({
+      id: createId(),
+      email: elements.newUserEmail.value.trim(),
+      full_name: elements.newUserFullName.value.trim(),
+      role: elements.newUserRole.value,
+      is_active: true,
+    });
+    elements.createUserForm.reset();
+    renderUsers();
+    return;
+  }
+
+  try {
+    await apiRequest("/users", {
+      method: "POST",
+      body: {
+        fullName: elements.newUserFullName.value.trim(),
+        email: elements.newUserEmail.value.trim(),
+        password: elements.newUserPassword.value,
+        role: elements.newUserRole.value,
+      },
+    });
+
+    elements.createUserForm.reset();
+    await loadUsers();
+    renderUsers();
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function updateUserFromAdmin(userId, updates) {
+  if (state.profile?.role !== "admin") {
+    return;
+  }
+
+  if (!state.serverMode) {
+    const user = state.users.find((item) => item.id === userId);
+    if (user) {
+      if (updates.role) {
+        user.role = updates.role;
+      }
+      if (typeof updates.isActive === "boolean") {
+        user.is_active = updates.isActive;
+      }
+    }
+    renderUsers();
+    return;
+  }
+
+  try {
+    await apiRequest(`/users/${userId}`, {
+      method: "PATCH",
+      body: updates,
+    });
+    await loadUsers();
+    renderUsers();
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+function canDeleteProjects() {
+  return !state.serverMode || state.profile?.role === "admin";
+}
+
 function updateAuthState() {
-  if (!supabaseClient) {
-    if (elements.cloudStatus) {
-      elements.cloudStatus.textContent = "Локальный режим: Supabase не настроен, данные видны только в этом браузере.";
+  if (!isApiConfigured) {
+    if (elements.serverStatus) {
+      elements.serverStatus.textContent = "Локальный режим: API не настроен, данные видны только в этом браузере.";
     }
     if (elements.signOutBtn) {
       elements.signOutBtn.hidden = true;
+    }
+    if (elements.appServerStatus) {
+      elements.appServerStatus.textContent = "API не настроен.";
     }
     return;
   }
 
   if (state.user) {
-    if (elements.cloudStatus) {
-      elements.cloudStatus.textContent = `Облачный режим: вход выполнен как ${state.user.email}.`;
+    if (elements.serverStatus) {
+      const role = state.profile?.role === "admin" ? "admin" : "user";
+      elements.serverStatus.textContent = `Серверный режим: вход выполнен как ${state.user.email}. Роль: ${role}.`;
     }
     if (elements.signOutBtn) {
       elements.signOutBtn.hidden = false;
+    }
+    if (elements.appServerStatus) {
+      const role = state.profile?.role === "admin" ? "admin" : "user";
+      elements.appServerStatus.textContent = `Вход выполнен: ${state.user.email}. Роль: ${role}.`;
     }
     if (elements.authEmail) {
       elements.authEmail.value = state.user.email || "";
@@ -399,48 +594,63 @@ function updateAuthState() {
     return;
   }
 
-  if (elements.cloudStatus) {
-    elements.cloudStatus.textContent = "Supabase настроен. Войдите, чтобы работать с общей базой и файлами.";
+  if (elements.serverStatus) {
+    elements.serverStatus.textContent = "API настроен. Войдите, чтобы работать с серверной базой и файлами.";
   }
   if (elements.signOutBtn) {
     elements.signOutBtn.hidden = true;
   }
+  if (elements.appServerStatus) {
+    elements.appServerStatus.textContent = "";
+  }
 }
 
 async function loadInitialProjects() {
-  state.projects = state.cloudMode ? await loadCloudProjects() : loadLocalProjects();
+  state.projects = state.serverMode ? await loadServerProjects() : loadLocalProjects();
   state.activeId = state.projects[0]?.id || null;
 }
 
-async function loadCloudProjects() {
-  const { data: projects, error } = await supabaseClient
-    .from("land_projects")
-    .select("*")
-    .order("updated_at", { ascending: false });
+async function loadServerProjects() {
+  try {
+    const data = await apiRequest("/projects");
+    const projects = data.projects || [];
+    const filesByProject = await Promise.all(
+      projects.map(async (project) => {
+        const filesData = await apiRequest(`/projects/${project.id}/files`);
+        return [project.id, filesData.files || []];
+      }),
+    );
+    const fileMap = new Map(filesByProject);
 
-  if (error) {
-    alert(`Не удалось загрузить проекты: ${error.message}`);
+    return projects.map((project) => fromApiProject(project, fileMap.get(project.id) || []));
+  } catch (error) {
+    alert(`Не удалось загрузить проекты с сервера: ${error.message}`);
     return [];
   }
-
-  const { data: files, error: filesError } = await supabaseClient
-    .from("land_project_files")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  if (filesError) {
-    alert(`Не удалось загрузить файлы: ${filesError.message}`);
-  }
-
-  const mappedProjects = projects.map((project) => fromDbProject(project, files || []));
-  await attachSignedUrls(mappedProjects);
-
-  return mappedProjects;
 }
 
 function render() {
+  const isAuthenticated = Boolean(state.user);
+
+  if (elements.authView) {
+    elements.authView.hidden = isAuthenticated;
+  }
+  if (elements.appShell) {
+    elements.appShell.hidden = !isAuthenticated;
+  }
+
+  if (!isAuthenticated) {
+    return;
+  }
+
+  if (elements.userAdminPanel) {
+    elements.userAdminPanel.hidden = state.profile?.role !== "admin";
+  }
   elements.registryView.hidden = state.view !== "registry";
   elements.detailView.hidden = state.view !== "detail";
+  elements.deleteBtn.hidden = !canDeleteProjects();
+  renderCabinet();
+  renderUsers();
   renderProjectTable();
 
   if (state.view === "detail") {
@@ -448,8 +658,81 @@ function render() {
   }
 }
 
+function renderCabinet() {
+  if (!elements.cabinetPanel || !state.user) {
+    return;
+  }
+
+  const role = state.profile?.role === "admin" ? "admin" : "user";
+  const displayName = state.user.full_name || state.user.fullName || "";
+
+  if (elements.cabinetTitle) {
+    elements.cabinetTitle.textContent = role === "admin" ? "Кабинет администратора" : "Кабинет пользователя";
+  }
+  if (elements.cabinetRole) {
+    elements.cabinetRole.textContent = role;
+    elements.cabinetRole.classList.toggle("is-admin", role === "admin");
+  }
+  if (elements.cabinetUserEmail) {
+    elements.cabinetUserEmail.textContent = state.user.email || "Без email";
+  }
+  if (elements.cabinetUserName) {
+    elements.cabinetUserName.textContent = displayName || "Имя не указано";
+  }
+  if (elements.cabinetProjects) {
+    elements.cabinetProjects.textContent = String(state.projects.length);
+  }
+  if (elements.cabinetUsers) {
+    elements.cabinetUsers.textContent = String(state.users.length);
+  }
+  if (elements.cabinetUsersCard) {
+    elements.cabinetUsersCard.hidden = role !== "admin";
+  }
+}
+
+function renderUsers() {
+  if (!elements.userList || state.profile?.role !== "admin") {
+    return;
+  }
+
+  if (state.users.length === 0) {
+    elements.userList.innerHTML = `<div class="user-empty">Пользователей пока нет</div>`;
+    return;
+  }
+
+  elements.userList.innerHTML = "";
+  state.users.forEach((user) => {
+    const row = document.createElement("div");
+    row.className = "user-row";
+    row.innerHTML = `
+      <div class="user-meta">
+        <strong>${escapeHtml(user.full_name || user.email)}</strong>
+        <span>${escapeHtml(user.email)}</span>
+      </div>
+      <select class="user-role-select" aria-label="Роль пользователя">
+        <option value="user" ${user.role === "user" ? "selected" : ""}>user</option>
+        <option value="admin" ${user.role === "admin" ? "selected" : ""}>admin</option>
+      </select>
+      <label class="user-active-toggle">
+        <input class="user-active-checkbox" type="checkbox" ${user.is_active ? "checked" : ""} />
+        Активен
+      </label>
+      <button class="secondary-button user-save-btn" type="button">Сохранить</button>
+    `;
+
+    row.querySelector(".user-save-btn").addEventListener("click", async () => {
+      await updateUserFromAdmin(user.id, {
+        role: row.querySelector(".user-role-select").value,
+        isActive: row.querySelector(".user-active-checkbox").checked,
+      });
+    });
+    elements.userList.append(row);
+  });
+}
+
 function renderProjectTable() {
   const query = elements.search.value.trim().toLowerCase();
+  const canDelete = canDeleteProjects();
   const filteredProjects = state.projects.filter((project) => {
     const content = [project.title, project.address, project.status, project.responsible, project.area].join(" ").toLowerCase();
     return content.includes(query);
@@ -458,8 +741,9 @@ function renderProjectTable() {
   elements.tableBody.innerHTML = "";
   elements.projectTable?.classList.toggle("is-delete-mode", state.deleteMode);
   elements.deleteSelectedBtn.textContent = state.deleteMode ? "Удалить выбранные" : "Удалить";
+  elements.deleteSelectedBtn.hidden = !canDelete;
   if (elements.cancelDeleteBtn) {
-    elements.cancelDeleteBtn.hidden = !state.deleteMode;
+    elements.cancelDeleteBtn.hidden = !state.deleteMode || !canDelete;
   }
 
   if (filteredProjects.length === 0) {
@@ -553,9 +837,10 @@ function renderSections(project) {
       const sectionIndex = Number(input.dataset.sectionIndex);
       const itemIndex = Number(input.dataset.itemIndex);
       const item = activeProject.sections[sectionIndex].items[itemIndex];
+      const valueKey = input.dataset.valueKey || "value";
 
-      item.value = input.value;
-      input.closest("tr").classList.toggle("is-filled", Boolean(item.value.trim()));
+      item[valueKey] = input.value;
+      input.closest("tr").classList.toggle("is-filled", isParamFilled(activeProject, item));
       queueProjectSave(activeProject);
     });
   });
@@ -576,6 +861,38 @@ function renderSections(project) {
       }
     });
   });
+
+  sectionList.querySelectorAll("[data-calendar-month], [data-calendar-year]").forEach((select) => {
+    select.addEventListener("change", () => {
+      const activeProject = getActiveProject();
+      const sectionIndex = Number(select.dataset.sectionIndex);
+      const itemIndex = Number(select.dataset.itemIndex);
+      const item = activeProject.sections[sectionIndex].items[itemIndex];
+      const row = select.closest(".inline-calendar");
+
+      item.calendarMonth = Number(row.querySelector("[data-calendar-month]").value);
+      item.calendarYear = Number(row.querySelector("[data-calendar-year]").value);
+      renderSections(activeProject);
+    });
+  });
+
+  sectionList.querySelectorAll("[data-calendar-day]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const activeProject = getActiveProject();
+      const sectionIndex = Number(button.dataset.sectionIndex);
+      const itemIndex = Number(button.dataset.itemIndex);
+      const item = activeProject.sections[sectionIndex].items[itemIndex];
+      const selected = parseIsoDate(button.dataset.calendarDay);
+
+      item.date = button.dataset.calendarDay;
+      item.calendarMonth = selected.getMonth();
+      item.calendarYear = selected.getFullYear();
+      queueProjectSave(activeProject);
+      renderSections(activeProject);
+    });
+  });
+
+  bindInlineMap(project);
 }
 
 function renderParamRow(project, item, sectionIndex, itemIndex) {
@@ -585,28 +902,7 @@ function renderParamRow(project, item, sectionIndex, itemIndex) {
     ${item.optional ? `<span class="mini-badge opt">опц.</span>` : ""}
   `;
 
-  if (item.type === "map" || item.type === "images" || item.type === "documents") {
-    if (item.type === "images" || item.type === "documents") {
-      return `
-        <tr class="${filled ? "is-filled" : ""}">
-          <td>
-            <div class="param-name-cell">
-              <strong>${escapeHtml(item.label)} ${badges}</strong>
-              <span>${escapeHtml(item.note || "")}</span>
-            </div>
-          </td>
-          <td>
-            <div class="param-combo">
-              <textarea data-param-input data-section-index="${sectionIndex}" data-item-index="${itemIndex}" rows="2" placeholder="Заполните описание вручную">${escapeHtml(item.value || "")}</textarea>
-              <button class="secondary-button param-action-button" data-param-action="${item.type}" data-section-index="${sectionIndex}" data-item-index="${itemIndex}" type="button">
-                ${escapeHtml(getParamActionText(project, item))}
-              </button>
-            </div>
-          </td>
-        </tr>
-      `;
-    }
-
+  if (item.type === "deadline") {
     return `
       <tr class="${filled ? "is-filled" : ""}">
         <td>
@@ -616,9 +912,58 @@ function renderParamRow(project, item, sectionIndex, itemIndex) {
           </div>
         </td>
         <td>
-          <button class="secondary-button param-action-button" data-param-action="${item.type}" data-section-index="${sectionIndex}" data-item-index="${itemIndex}" type="button">
-            ${escapeHtml(getParamActionText(project, item))}
-          </button>
+          <div class="deadline-fields">
+            ${renderInlineCalendar(item, sectionIndex, itemIndex)}
+            <label>
+              <textarea aria-label="Комментарии" data-param-input data-value-key="comment" data-section-index="${sectionIndex}" data-item-index="${itemIndex}" rows="2" placeholder="Комментарии">${escapeHtml(item.comment || "")}</textarea>
+            </label>
+          </div>
+        </td>
+      </tr>
+    `;
+  }
+
+  if (item.type === "map") {
+    return `
+      <tr class="${filled ? "is-filled" : ""}">
+        <td>
+          <div class="param-name-cell">
+            <strong>${escapeHtml(item.label)} ${badges}</strong>
+            <span>${escapeHtml(item.note || "")}</span>
+          </div>
+        </td>
+        <td>
+          <div class="inline-map-panel">
+            <div class="map-frame inline-map-frame" data-inline-map-frame></div>
+            <div class="map-actions">
+              <button class="secondary-button" data-inline-map-action="draw" type="button">Границы территории</button>
+              <button class="secondary-button danger" data-inline-map-action="clear" type="button">Очистить</button>
+              <button class="primary-button" data-inline-map-action="save" type="button">Сохранить территорию</button>
+            </div>
+            <div class="map-area-summary">Площадь выделенной территории: ${escapeHtml(project.area || "не указана")}</div>
+          </div>
+        </td>
+      </tr>
+    `;
+  }
+
+  if (item.type === "images" || item.type === "documents") {
+    const files = getItemFiles(project, item);
+    return `
+      <tr class="${filled ? "is-filled" : ""}">
+        <td>
+          <div class="param-name-cell">
+            <strong>${escapeHtml(item.label)} ${badges}</strong>
+            <span>${escapeHtml(item.note || "")}</span>
+          </div>
+        </td>
+        <td>
+          <div class="param-file-control">
+            <button class="secondary-button param-action-button" data-param-action="${item.type}" data-section-index="${sectionIndex}" data-item-index="${itemIndex}" type="button">
+              ${escapeHtml(getParamActionText(project, item))}
+            </button>
+            ${renderInlineFileList(files, item.type)}
+          </div>
         </td>
       </tr>
     `;
@@ -639,20 +984,175 @@ function renderParamRow(project, item, sectionIndex, itemIndex) {
   `;
 }
 
+function renderInlineCalendar(item, sectionIndex, itemIndex) {
+  const selected = parseIsoDate(item.date);
+  const today = new Date();
+  const viewYear = Number(item.calendarYear) || selected?.getFullYear() || today.getFullYear();
+  const viewMonth = Number.isInteger(Number(item.calendarMonth)) ? Number(item.calendarMonth) : selected?.getMonth() ?? today.getMonth();
+  const monthNames = [
+    "Январь",
+    "Февраль",
+    "Март",
+    "Апрель",
+    "Май",
+    "Июнь",
+    "Июль",
+    "Август",
+    "Сентябрь",
+    "Октябрь",
+    "Ноябрь",
+    "Декабрь",
+  ];
+  const yearOptions = Array.from({ length: 21 }, (_, index) => today.getFullYear() - 5 + index)
+    .map((year) => `<option value="${year}" ${year === viewYear ? "selected" : ""}>${year}</option>`)
+    .join("");
+  const firstDay = new Date(viewYear, viewMonth, 1);
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const leadingEmpty = (firstDay.getDay() + 6) % 7;
+  const cells = [];
+
+  for (let index = 0; index < leadingEmpty; index += 1) {
+    cells.push(`<span class="calendar-day is-empty"></span>`);
+  }
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const dateValue = toIsoDate(viewYear, viewMonth, day);
+    const isSelected = item.date === dateValue;
+    cells.push(`
+      <button class="calendar-day${isSelected ? " is-selected" : ""}" data-calendar-day="${dateValue}" data-section-index="${sectionIndex}" data-item-index="${itemIndex}" type="button">
+        ${day}
+      </button>
+    `);
+  }
+
+  return `
+    <div class="inline-calendar">
+      <div class="calendar-toolbar">
+        <select data-calendar-month data-section-index="${sectionIndex}" data-item-index="${itemIndex}">
+          ${monthNames.map((month, index) => `<option value="${index}" ${index === viewMonth ? "selected" : ""}>${month}</option>`).join("")}
+        </select>
+        <select data-calendar-year data-section-index="${sectionIndex}" data-item-index="${itemIndex}">
+          ${yearOptions}
+        </select>
+      </div>
+      <div class="calendar-weekdays">
+        <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+      </div>
+      <div class="calendar-grid">${cells.join("")}</div>
+      <div class="calendar-selected-card">
+        <span>Выбранный срок</span>
+        <strong>${escapeHtml(formatDeadlineDate(item.date))}</strong>
+      </div>
+    </div>
+  `;
+}
+
+function parseIsoDate(value) {
+  if (!value) {
+    return null;
+  }
+
+  const [year, month, day] = value.split("-").map(Number);
+
+  if (!year || !month || !day) {
+    return null;
+  }
+
+  return new Date(year, month - 1, day);
+}
+
+function toIsoDate(year, month, day) {
+  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function formatDeadlineDate(value) {
+  const date = parseIsoDate(value);
+
+  if (!date) {
+    return "не выбран";
+  }
+
+  return date.toLocaleDateString("ru-RU", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+}
+
 function getParamActionText(project, item) {
   if (item.type === "map") {
-    return (project.areaPoints || []).length > 0 ? "Открыть карту - границы указаны" : "Открыть карту";
+    return (project.areaPoints || []).length > 0 ? "Границы указаны" : "Карта";
   }
 
   if (item.type === "images") {
-    return (project.images || []).length > 0 ? `Открыть фото (${project.images.length})` : "Добавить фото";
+    const count = getItemFiles(project, item).length;
+    return count > 0 ? `Добавить материал (${count})` : "Добавить материал";
   }
 
   if (item.type === "documents") {
-    return (project.documents || []).length > 0 ? `Открыть документы (${project.documents.length})` : "Добавить документы";
+    const count = getItemFiles(project, item).length;
+    return count > 0 ? `Добавить документы (${count})` : "Добавить документы";
   }
 
   return "Открыть";
+}
+
+function getItemFiles(project, item) {
+  const source = item.type === "images" ? project.images || [] : project.documents || [];
+
+  return source.filter((file) => {
+    if (file.category) {
+      return file.category === item.label;
+    }
+
+    return item.label === "Документы и файлы" || item.label === "Фото участка";
+  });
+}
+
+function renderInlineFileList(files, type) {
+  if (files.length === 0) {
+    return `<div class="inline-file-list is-empty">Пока ничего не добавлено</div>`;
+  }
+
+  if (type === "documents") {
+    return `
+      <div class="document-preview-grid">
+        ${files.map((file) => renderDocumentPreview(file)).join("")}
+      </div>
+    `;
+  }
+
+  return `
+    <div class="inline-file-list">
+      ${files
+        .map(
+          (file) => `
+            <a href="${getFileUrl(file)}" target="_blank" rel="noreferrer" download="${escapeHtml(file.name)}">
+              ${escapeHtml(file.name)}
+            </a>
+          `,
+        )
+        .join("")}
+    </div>
+  `;
+}
+
+function renderDocumentPreview(file) {
+  const fileUrl = getFileUrl(file);
+  const canPreview = file.type?.startsWith("image/") || file.type === "application/pdf";
+
+  return `
+    <div class="document-preview">
+      <div class="document-preview-frame">
+        ${
+          canPreview
+            ? `<iframe src="${fileUrl}" title="${escapeHtml(file.name)}"></iframe>`
+            : `<a href="${fileUrl}" target="_blank" rel="noreferrer">Открыть документ</a>`
+        }
+      </div>
+      <a class="document-preview-name" href="${fileUrl}" target="_blank" rel="noreferrer" download="${escapeHtml(file.name)}">${escapeHtml(file.name)}</a>
+    </div>
+  `;
 }
 
 function isParamFilled(project, item) {
@@ -661,11 +1161,15 @@ function isParamFilled(project, item) {
   }
 
   if (item.type === "images") {
-    return (project.images || []).length > 0;
+    return getItemFiles(project, item).length > 0 || Boolean(item.value);
   }
 
   if (item.type === "documents") {
-    return (project.documents || []).length > 0;
+    return getItemFiles(project, item).length > 0 || Boolean(item.value);
+  }
+
+  if (item.type === "deadline") {
+    return Boolean(item.date || item.comment);
   }
 
   return Boolean(item.value);
@@ -742,6 +1246,7 @@ function openMapModal(item) {
 }
 
 function openImagesModal(item) {
+  state.currentFileItem = item;
   elements.paramModalEyebrow.textContent = "Визуальные материалы";
   elements.paramModalTitle.textContent = item.label;
   elements.paramModalNote.textContent = item.note || "";
@@ -756,6 +1261,7 @@ function openImagesModal(item) {
 }
 
 function openDocumentsModal(item) {
+  state.currentFileItem = item;
   elements.paramModalEyebrow.textContent = "Документы";
   elements.paramModalTitle.textContent = item.label;
   elements.paramModalNote.textContent = item.note || "";
@@ -777,6 +1283,7 @@ function closeParamModal() {
   elements.paramModal.hidden = true;
   elements.paramModalBody.innerHTML = "";
   state.map.mode = "move";
+  state.currentFileItem = null;
 }
 
 function refreshDynamicElements() {
@@ -788,6 +1295,56 @@ function refreshDynamicElements() {
   elements.drawAreaBtn = document.querySelector("#drawAreaBtn");
   elements.clearAreaBtn = document.querySelector("#clearAreaBtn");
   elements.saveMapBtn = document.querySelector("#saveMapBtn");
+}
+
+function bindInlineMap(project) {
+  const inlineMapFrame = document.querySelector("[data-inline-map-frame]");
+
+  if (!inlineMapFrame) {
+    return;
+  }
+
+  elements.mapFrame = inlineMapFrame;
+  renderMap(project);
+
+  document.querySelector("[data-inline-map-action='draw']")?.addEventListener("click", () => {
+    state.map.mode = state.map.mode === "draw" ? "move" : "draw";
+    elements.mapFrame = inlineMapFrame;
+    renderMap(getActiveProject());
+    updateInlineMapActionState();
+  });
+
+  document.querySelector("[data-inline-map-action='clear']")?.addEventListener("click", async () => {
+    const activeProject = getActiveProject();
+    activeProject.areaPoints = [];
+    activeProject.areaSquareMeters = 0;
+    activeProject.area = "";
+    activeProject.lat = "";
+    activeProject.lng = "";
+    activeProject.updatedAt = new Date().toISOString();
+    setAreaInputValue("");
+    elements.mapFrame = inlineMapFrame;
+    await persistProject(activeProject);
+    renderMap(activeProject);
+    renderProjectTable();
+    renderSections(activeProject);
+  });
+
+  document.querySelector("[data-inline-map-action='save']")?.addEventListener("click", async () => {
+    const activeProject = updateActiveProjectFromForm();
+    state.map.mode = "move";
+    elements.mapFrame = inlineMapFrame;
+    await persistProject(activeProject);
+    renderMap(activeProject);
+    renderProjectTable();
+    updateInlineMapActionState();
+  });
+
+  updateInlineMapActionState();
+}
+
+function updateInlineMapActionState() {
+  document.querySelector("[data-inline-map-action='draw']")?.classList.toggle("is-active", state.map.mode === "draw");
 }
 
 function bindMapModalControls() {
@@ -804,7 +1361,7 @@ function bindMapModalControls() {
     project.lat = "";
     project.lng = "";
     project.updatedAt = new Date().toISOString();
-    document.querySelector("#area").value = "";
+    setAreaInputValue("");
     await persistProject(project);
     renderMap(project);
     renderProjectTable();
@@ -831,10 +1388,15 @@ function getProjectSections(project) {
         optional: Boolean(optional),
         type: type || "text",
         value: "",
+        date: "",
+        comment: "",
+        calendarMonth: "",
+        calendarYear: "",
       })),
     }));
   }
 
+  project.sections = normalizeSections(project.sections);
   return project.sections;
 }
 
@@ -904,6 +1466,7 @@ function drawMap(project) {
   bindMapEvents(layer, startX, startY, zoom);
   bindZoomButtons();
   updateMapActionState();
+  updateInlineMapAreaSummary(project);
 }
 
 function drawMarker(project, frame, startX, startY, zoom) {
@@ -998,12 +1561,6 @@ function bindMapEvents(layer, startX, startY, zoom) {
     });
     updateCalculatedArea(activeProject);
 
-    if (activeProject.lat && activeProject.lng) {
-      state.map.centerLat = Number(activeProject.lat);
-      state.map.centerLng = Number(activeProject.lng);
-      state.map.mode = "move";
-    }
-
     activeProject.updatedAt = new Date().toISOString();
     await persistProject(activeProject);
     drawMap(activeProject);
@@ -1081,7 +1638,7 @@ function updateCalculatedArea(project) {
   if (points.length < 3) {
     project.areaSquareMeters = 0;
     project.area = "";
-    document.querySelector("#area").value = "";
+    setAreaInputValue("");
     return;
   }
 
@@ -1089,7 +1646,15 @@ function updateCalculatedArea(project) {
   project.areaSquareMeters = Math.round(squareMeters);
   project.area = formatArea(squareMeters);
   setProjectMarkerToAreaCenter(project);
-  document.querySelector("#area").value = project.area;
+  setAreaInputValue(project.area);
+}
+
+function setAreaInputValue(value) {
+  const areaInput = document.querySelector("#area");
+
+  if (areaInput) {
+    areaInput.value = value;
+  }
 }
 
 function setProjectMarkerToAreaCenter(project) {
@@ -1139,7 +1704,16 @@ function calculatePolygonCenter(points) {
 }
 
 function updateMapActionState() {
-  elements.drawAreaBtn.classList.toggle("is-active", state.map.mode === "draw");
+  elements.drawAreaBtn?.classList.toggle("is-active", state.map.mode === "draw");
+  updateInlineMapActionState();
+}
+
+function updateInlineMapAreaSummary(project) {
+  const summary = document.querySelector(".map-area-summary");
+
+  if (summary) {
+    summary.textContent = `Площадь выделенной территории: ${project.area || "не указана"}`;
+  }
 }
 
 function renderStatusDropdown() {
@@ -1157,26 +1731,24 @@ function renderStatusDropdown() {
 
     const list = phaseBlock.querySelector(".status-dropdown-options");
 
-    phase.statuses.forEach(([name, description, badge], statusIndex) => {
+    phase.statuses.forEach((statusText) => {
       const option = document.createElement("button");
-      option.className = `status-dropdown-option${activeProject.status === name ? " is-selected" : ""}`;
+      option.className = `status-dropdown-option${activeProject.status === statusText ? " is-selected" : ""}`;
       option.type = "button";
       option.innerHTML = `
-        <span class="status-check">${activeProject.status === name ? "✓" : ""}</span>
+        <span class="status-check">${activeProject.status === statusText ? "✓" : ""}</span>
         <span class="status-body">
-          <strong>${escapeHtml(name)}</strong>
-          <small>${escapeHtml(description)}</small>
+          <strong>${escapeHtml(statusText)}</strong>
         </span>
-        <span class="status-choice-badge">${escapeHtml(badge)}</span>
       `;
       option.addEventListener("click", async () => {
-        activeProject.status = badge;
-        activeProject.statusName = name;
-        activeProject.statusDescription = description;
-        activeProject.statusBadge = badge;
+        activeProject.status = statusText;
+        activeProject.statusName = statusText;
+        activeProject.statusDescription = "";
+        activeProject.statusBadge = statusText;
         activeProject.updatedAt = new Date().toISOString();
-        document.querySelector("#status").value = badge;
-        elements.statusPickerText.textContent = badge;
+        document.querySelector("#status").value = statusText;
+        elements.statusPickerText.textContent = statusText;
         elements.statusDropdown.hidden = true;
         await persistProject(activeProject);
         renderProjectTable();
@@ -1228,13 +1800,14 @@ function worldToLatLng(x, y, zoom) {
 
 function renderImages(project) {
   elements.imageGrid.innerHTML = "";
+  const images = state.currentFileItem ? getItemFiles(project, state.currentFileItem) : project.images;
 
-  if (project.images.length === 0) {
+  if (images.length === 0) {
     elements.imageGrid.innerHTML = `<div class="empty-state"><p>Фото пока не добавлены.</p></div>`;
     return;
   }
 
-  project.images.forEach((image) => {
+  images.forEach((image) => {
     const tile = document.createElement("div");
     tile.className = "image-tile";
     const isVideo = image.type?.startsWith("video/");
@@ -1256,13 +1829,14 @@ function renderImages(project) {
 
 function renderDocuments(project) {
   elements.documentList.innerHTML = "";
+  const documents = state.currentFileItem ? getItemFiles(project, state.currentFileItem) : project.documents;
 
-  if (project.documents.length === 0) {
+  if (documents.length === 0) {
     elements.documentList.innerHTML = `<div class="empty-state"><p>Файлы пока не добавлены.</p></div>`;
     return;
   }
 
-  project.documents.forEach((documentItem) => {
+  documents.forEach((documentItem) => {
     const row = document.createElement("div");
     row.className = "file-row";
     row.innerHTML = `
@@ -1296,12 +1870,13 @@ function updateActiveProjectFromForm() {
 async function addFiles(fileList, kind) {
   const project = getActiveProject();
   const files = Array.from(fileList);
+  const category = state.currentFileItem?.label || "";
 
-  if (state.cloudMode) {
+  if (state.serverMode) {
     const uploadedFiles = [];
 
     for (const file of files) {
-      uploadedFiles.push(await uploadCloudFile(project, file, kind));
+      uploadedFiles.push(await uploadServerFile(project, file, kind, category));
     }
 
     if (kind === "image") {
@@ -1312,7 +1887,7 @@ async function addFiles(fileList, kind) {
       renderDocuments(project);
     }
   } else {
-    const savedFiles = await Promise.all(files.map((file) => fileToStoredObject(file, kind)));
+    const savedFiles = await Promise.all(files.map((file) => fileToStoredObject(file, kind, category)));
 
     if (kind === "image") {
       project.images.push(...savedFiles);
@@ -1328,40 +1903,20 @@ async function addFiles(fileList, kind) {
   renderSections(project);
 }
 
-async function uploadCloudFile(project, file, kind) {
+async function uploadServerFile(project, file, kind, category = "") {
   await persistProject(project);
 
-  const storagePath = `${project.id}/${kind}/${createId()}-${sanitizeFileName(file.name)}`;
-  const { error: uploadError } = await supabaseClient.storage.from(storageBucket).upload(storagePath, file, {
-    contentType: file.type || "application/octet-stream",
-    upsert: false,
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("kind", kind);
+  formData.append("fileCategory", category);
+
+  const data = await apiRequest(`/projects/${project.id}/files`, {
+    method: "POST",
+    body: formData,
   });
 
-  if (uploadError) {
-    alert(`Не удалось загрузить файл: ${uploadError.message}`);
-    throw uploadError;
-  }
-
-  const payload = {
-    project_id: project.id,
-    kind,
-    name: file.name,
-    size: file.size,
-    type: file.type || "",
-    storage_path: storagePath,
-    created_by: state.user.id,
-  };
-  const { data, error } = await supabaseClient.from("land_project_files").insert(payload).select("*").single();
-
-  if (error) {
-    alert(`Файл загрузился, но запись не сохранилась: ${error.message}`);
-    throw error;
-  }
-
-  const savedFile = fromDbFile(data);
-  savedFile.url = await createSignedFileUrl(savedFile.storagePath);
-
-  return savedFile;
+  return fromApiFile(data.file);
 }
 
 async function deleteFile(project, file) {
@@ -1372,9 +1927,8 @@ async function deleteFile(project, file) {
     targetList.splice(index, 1);
   }
 
-  if (state.cloudMode && file.storagePath) {
-    await supabaseClient.storage.from(storageBucket).remove([file.storagePath]);
-    await supabaseClient.from("land_project_files").delete().eq("id", file.id);
+  if (state.serverMode) {
+    await apiRequest(`/files/${file.id}`, { method: "DELETE" });
   } else {
     saveLocalProjects();
   }
@@ -1382,7 +1936,7 @@ async function deleteFile(project, file) {
   renderSections(project);
 }
 
-function fileToStoredObject(file, kind) {
+function fileToStoredObject(file, kind, category = "") {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
 
@@ -1393,6 +1947,7 @@ function fileToStoredObject(file, kind) {
         name: file.name,
         size: file.size,
         type: file.type,
+        category,
         dataUrl: reader.result,
         addedAt: new Date().toISOString(),
       });
@@ -1444,6 +1999,10 @@ function createProject() {
         optional: Boolean(optional),
         type: type || "text",
         value: "",
+        date: "",
+        comment: "",
+        calendarMonth: "",
+        calendarYear: "",
       })),
     })),
     createdAt: now,
@@ -1474,10 +2033,7 @@ function normalizeSections(sections) {
       title: template.title,
       subtitle: template.subtitle,
       items: template.items.map(([label, note, required, optional, type], itemIndex) => {
-        const existingItem =
-          existingItems.find((item) => typeof item === "object" && item.label === label) ||
-          existingItems[itemIndex] ||
-          {};
+        const existingItem = findExistingItem(existingItems, label, itemIndex);
 
         return {
           label,
@@ -1486,10 +2042,27 @@ function normalizeSections(sections) {
           optional: Boolean(optional),
           type: type || "text",
           value: typeof existingItem === "object" ? existingItem.value || "" : "",
+          date: typeof existingItem === "object" ? existingItem.date || "" : "",
+          comment: typeof existingItem === "object" ? existingItem.comment || "" : "",
+          calendarMonth: typeof existingItem === "object" ? existingItem.calendarMonth ?? "" : "",
+          calendarYear: typeof existingItem === "object" ? existingItem.calendarYear ?? "" : "",
         };
       }),
     };
   });
+}
+
+function findExistingItem(existingItems, label, itemIndex) {
+  const aliases = {};
+  const labels = [label, ...(aliases[label] || [])];
+  const byLabel = existingItems.find((item) => typeof item === "object" && labels.includes(item.label));
+
+  if (byLabel) {
+    return byLabel;
+  }
+
+  const byIndex = existingItems[itemIndex];
+  return typeof byIndex === "object" && byIndex.label === label ? byIndex : {};
 }
 
 function getActiveProject() {
@@ -1510,18 +2083,24 @@ async function persistProject(project) {
 
   project.updatedAt = new Date().toISOString();
 
-  if (!state.cloudMode) {
+  if (!state.serverMode) {
     saveLocalProjects();
     return;
   }
 
-  const { error } = await supabaseClient.from("land_projects").upsert(toDbProject(project), {
-    onConflict: "id",
-  });
+  await apiRequest(`/projects/${project.id}`, {
+    method: "PUT",
+    body: toApiProject(project),
+  }).catch(async (error) => {
+    if (error.status !== 404) {
+      throw error;
+    }
 
-  if (error) {
-    alert(`Не удалось сохранить проект: ${error.message}`);
-  }
+    await apiRequest("/projects", {
+      method: "POST",
+      body: toApiProject(project),
+    });
+  });
 }
 
 async function deleteProjects(projectIds) {
@@ -1532,19 +2111,9 @@ async function deleteProjects(projectIds) {
     return;
   }
 
-  if (state.cloudMode) {
-    const projectsToDelete = state.projects.filter((project) => ids.includes(project.id));
-    const paths = projectsToDelete.flatMap((project) => [...project.images, ...project.documents]).map((file) => file.storagePath).filter(Boolean);
-
-    if (paths.length > 0) {
-      await supabaseClient.storage.from(storageBucket).remove(paths);
-    }
-
-    const { error } = await supabaseClient.from("land_projects").delete().in("id", ids);
-
-    if (error) {
-      alert(`Не удалось удалить проекты: ${error.message}`);
-      return;
+  if (state.serverMode) {
+    for (const id of ids) {
+      await apiRequest(`/projects/${id}`, { method: "DELETE" });
     }
   }
 
@@ -1567,7 +2136,7 @@ function loadLocalProjects() {
 }
 
 function saveLocalProjects() {
-  if (state.cloudMode) {
+  if (state.serverMode) {
     return;
   }
 
@@ -1607,7 +2176,7 @@ function importProjects(file) {
       state.projects = projects.map(normalizeProject);
       state.activeId = state.projects[0]?.id || null;
 
-      if (state.cloudMode) {
+      if (state.serverMode) {
         for (const project of state.projects) {
           await persistProject(project);
         }
@@ -1622,7 +2191,44 @@ function importProjects(file) {
   });
 }
 
-function toDbProject(project) {
+async function apiRequest(path, options = {}) {
+  const headers = {
+    ...(options.headers || {}),
+  };
+  const request = {
+    method: options.method || "GET",
+    headers,
+  };
+
+  if (state.apiToken) {
+    headers.Authorization = `Bearer ${state.apiToken}`;
+  }
+
+  if (options.body instanceof FormData) {
+    request.body = options.body;
+  } else if (options.body !== undefined) {
+    headers["Content-Type"] = "application/json";
+    request.body = JSON.stringify(options.body);
+  }
+
+  const response = await fetch(`${apiBaseUrl}${path}`, request);
+
+  if (response.status === 204) {
+    return {};
+  }
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const error = new Error(data.error || `HTTP ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
+
+  return data;
+}
+
+function toApiProject(project) {
   return {
     id: project.id,
     title: project.title || "Новый участок",
@@ -1635,15 +2241,14 @@ function toDbProject(project) {
     comments: project.comments || "",
     lat: project.lat ? Number(project.lat) : null,
     lng: project.lng ? Number(project.lng) : null,
-    area_square_meters: project.areaSquareMeters || 0,
-    area_points: project.areaPoints || [],
+    areaSquareMeters: project.areaSquareMeters || 0,
+    areaPoints: project.areaPoints || [],
     sections: project.sections || [],
-    created_by: state.user.id,
   };
 }
 
-function fromDbProject(project, files) {
-  const projectFiles = files.filter((file) => file.project_id === project.id).map(fromDbFile);
+function fromApiProject(project, files) {
+  const projectFiles = files.map(fromApiFile);
 
   return normalizeProject({
     id: project.id,
@@ -1657,8 +2262,8 @@ function fromDbProject(project, files) {
     comments: project.comments,
     lat: project.lat ? String(project.lat) : "",
     lng: project.lng ? String(project.lng) : "",
-    areaSquareMeters: Number(project.area_square_meters || 0),
-    areaPoints: project.area_points || [],
+    areaSquareMeters: Number(project.area_square_meters || project.areaSquareMeters || 0),
+    areaPoints: project.area_points || project.areaPoints || [],
     sections: project.sections || [],
     images: projectFiles.filter((file) => file.kind === "image"),
     documents: projectFiles.filter((file) => file.kind === "document"),
@@ -1667,41 +2272,18 @@ function fromDbProject(project, files) {
   });
 }
 
-function fromDbFile(file) {
+function fromApiFile(file) {
   return {
     id: file.id,
     kind: file.kind,
     name: file.name,
     size: file.size,
     type: file.type,
+    category: file.file_category || "",
     storagePath: file.storage_path,
-    url: "",
+    url: `${apiBaseUrl}/files/${file.id}/download?token=${encodeURIComponent(state.apiToken)}`,
     addedAt: file.created_at,
   };
-}
-
-async function attachSignedUrls(projects) {
-  const files = projects.flatMap((project) => [...project.images, ...project.documents]);
-
-  await Promise.all(
-    files.map(async (file) => {
-      file.url = await createSignedFileUrl(file.storagePath);
-    }),
-  );
-}
-
-async function createSignedFileUrl(storagePath) {
-  if (!state.cloudMode || !storagePath) {
-    return "";
-  }
-
-  const { data, error } = await supabaseClient.storage.from(storageBucket).createSignedUrl(storagePath, 60 * 60 * 24);
-
-  if (error) {
-    return "";
-  }
-
-  return data.signedUrl;
 }
 
 function formatDate(value) {
