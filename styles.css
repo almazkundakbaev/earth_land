@@ -135,6 +135,38 @@ button {
   margin-bottom: 16px;
 }
 
+.user-management-box {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.user-management-box + .user-management-box {
+  margin-top: 14px;
+}
+
+.user-management-box h3 {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+
+.user-list-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.user-list-heading h3 {
+  margin: 0;
+}
+
+.user-list-heading input {
+  width: min(260px, 100%);
+}
+
 .cabinet-panel {
   margin-bottom: 16px;
 }
@@ -207,8 +239,73 @@ button {
 
 .user-create-form {
   display: grid;
-  grid-template-columns: 1.2fr 1.3fr 1fr 160px auto;
-  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.user-create-form button {
+  grid-column: 2;
+}
+
+.user-create-form small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.user-table-wrap {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.user-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  background: #ffffff;
+}
+
+.user-table th,
+.user-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.user-table th {
+  background: var(--panel-soft);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.user-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.user-table .user-row {
+  display: table-row;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.user-table select {
+  min-height: 34px;
+}
+
+.user-table .user-save-btn {
+  min-height: 34px;
+  padding: 0 12px;
+}
+
+.user-table .user-active-toggle {
+  width: fit-content;
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: rgba(23, 107, 93, 0.1);
+  color: var(--accent-strong);
 }
 
 .user-list {
@@ -343,6 +440,24 @@ label {
   gap: 10px;
 }
 
+.registry-actions {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+.registry-main-actions,
+.registry-delete-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  width: 100%;
+}
+
+.registry-delete-actions {
+  justify-content: flex-end;
+}
+
 .registry-actions input {
   width: min(360px, 42vw);
 }
@@ -377,8 +492,14 @@ label {
 }
 
 .project-table tbody tr:hover,
-.project-table tbody tr.is-active {
+.project-table tbody tr.is-active,
+.project-table tbody tr.is-selected {
   background: rgba(23, 107, 93, 0.07);
+}
+
+.project-table tbody tr.is-selected {
+  outline: 1px solid rgba(23, 107, 93, 0.35);
+  outline-offset: -1px;
 }
 
 .project-table td:first-child {
@@ -397,13 +518,11 @@ label {
   text-align: center;
 }
 
-.project-table:not(.is-delete-mode) .select-col {
-  display: none;
-}
-
 .project-select {
   width: 18px;
   min-height: 18px;
+  accent-color: var(--accent);
+  cursor: pointer;
 }
 
 .table-open-button {
@@ -1501,6 +1620,11 @@ label {
   .detail-actions button,
   .map-actions button {
     width: 100%;
+  }
+
+  .registry-main-actions,
+  .registry-delete-actions {
+    flex-direction: column;
   }
 
   .inline-map-panel .map-actions {

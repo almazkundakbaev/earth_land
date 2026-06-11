@@ -64,6 +64,7 @@ const elements = {
   newUserEmail: document.querySelector("#newUserEmail"),
   newUserPassword: document.querySelector("#newUserPassword"),
   newUserRole: document.querySelector("#newUserRole"),
+  userSearchInput: document.querySelector("#userSearchInput"),
   userList: document.querySelector("#userList"),
   registryView: document.querySelector("#registryView"),
   detailView: document.querySelector("#detailView"),
@@ -270,6 +271,7 @@ function bindEvents() {
     state.view = "cabinet";
     render();
   });
+  elements.userSearchInput?.addEventListener("input", renderUsers);
 
   elements.signUpBtn?.addEventListener("click", signUp);
   elements.signOutBtn?.addEventListener("click", signOut);
@@ -319,10 +321,8 @@ function bindEvents() {
 
   elements.deleteBtn.addEventListener("click", () => deleteProjects([state.activeId]));
   elements.deleteSelectedBtn.addEventListener("click", () => {
-    if (!state.deleteMode) {
-      state.deleteMode = true;
-      state.selectedIds.clear();
-      renderProjectTable();
+    if (state.selectedIds.size === 0) {
+      alert("Выберите один или несколько проектов.");
       return;
     }
 
@@ -729,7 +729,7 @@ function renderCabinet() {
   }
 }
 
-function renderUsers() {
+function renderUsersLegacy() {
   if (!elements.userList || state.profile?.role !== "admin") {
     return;
   }
@@ -769,6 +769,61 @@ function renderUsers() {
   });
 }
 
+function renderUsers() {
+  if (!elements.userList || state.profile?.role !== "admin") {
+    return;
+  }
+
+  const query = elements.userSearchInput?.value.trim().toLowerCase() || "";
+  const users = state.users.filter((user) => {
+    const content = [user.full_name, user.email, user.role].join(" ").toLowerCase();
+    return content.includes(query);
+  });
+
+  if (users.length === 0) {
+    elements.userList.innerHTML = `<tr><td class="user-empty" colspan="5">Пользователей пока нет</td></tr>`;
+    return;
+  }
+
+  elements.userList.innerHTML = "";
+  users.forEach((user) => {
+    const row = document.createElement("tr");
+    row.className = "user-row";
+    row.innerHTML = `
+      <td>
+        <div class="user-meta">
+          <strong>${escapeHtml(user.full_name || user.email)}</strong>
+          <span>${user.id === state.user.id ? "Текущий аккаунт" : "Пользователь"}</span>
+        </div>
+      </td>
+      <td>${escapeHtml(user.email)}</td>
+      <td>
+        <select class="user-role-select" aria-label="Роль пользователя">
+          <option value="user" ${user.role === "user" ? "selected" : ""}>user</option>
+          <option value="admin" ${user.role === "admin" ? "selected" : ""}>admin</option>
+        </select>
+      </td>
+      <td>
+        <label class="user-active-toggle">
+          <input class="user-active-checkbox" type="checkbox" ${user.is_active ? "checked" : ""} />
+          <span>${user.is_active ? "Активен" : "Отключен"}</span>
+        </label>
+      </td>
+      <td>
+        <button class="secondary-button user-save-btn" type="button">Сохранить</button>
+      </td>
+    `;
+
+    row.querySelector(".user-save-btn").addEventListener("click", async () => {
+      await updateUserFromAdmin(user.id, {
+        role: row.querySelector(".user-role-select").value,
+        isActive: row.querySelector(".user-active-checkbox").checked,
+      });
+    });
+    elements.userList.append(row);
+  });
+}
+
 function renderProjectTable() {
   const query = elements.search.value.trim().toLowerCase();
   const canDelete = canDeleteProjects();
@@ -778,11 +833,11 @@ function renderProjectTable() {
   });
 
   elements.tableBody.innerHTML = "";
-  elements.projectTable?.classList.toggle("is-delete-mode", state.deleteMode);
-  elements.deleteSelectedBtn.textContent = state.deleteMode ? "Удалить выбранные" : "Удалить";
+  elements.projectTable?.classList.remove("is-delete-mode");
+  elements.deleteSelectedBtn.textContent = "Удалить выбранные";
   elements.deleteSelectedBtn.hidden = !canDelete;
   if (elements.cancelDeleteBtn) {
-    elements.cancelDeleteBtn.hidden = !state.deleteMode || !canDelete;
+    elements.cancelDeleteBtn.hidden = true;
   }
 
   if (filteredProjects.length === 0) {
@@ -792,9 +847,12 @@ function renderProjectTable() {
 
   filteredProjects.forEach((project) => {
     const row = document.createElement("tr");
-    row.className = project.id === state.activeId ? "is-active" : "";
+    row.className = [
+      project.id === state.activeId ? "is-active" : "",
+      state.selectedIds.has(project.id) ? "is-selected" : "",
+    ].filter(Boolean).join(" ");
     row.innerHTML = `
-      <td class="select-col"><input class="project-select" type="checkbox" ${state.selectedIds.has(project.id) ? "checked" : ""} ${state.deleteMode ? "" : "disabled"} aria-label="Выбрать проект" /></td>
+      <td class="select-col"><input class="project-select" type="checkbox" ${state.selectedIds.has(project.id) ? "checked" : ""} aria-label="Выбрать проект" /></td>
       <td>${escapeHtml(project.title || "Без названия")}</td>
       <td>${escapeHtml(project.address || "Не заполнено")}</td>
       <td><span class="status-pill">${escapeHtml(project.status || "Не заполнено")}</span></td>
@@ -806,15 +864,12 @@ function renderProjectTable() {
     row.querySelector(".project-select").addEventListener("click", (event) => {
       event.stopPropagation();
 
-      if (!state.deleteMode) {
-        return;
-      }
-
       if (event.target.checked) {
         state.selectedIds.add(project.id);
       } else {
         state.selectedIds.delete(project.id);
       }
+      renderProjectTable();
     });
     row.querySelector(".table-open-button").addEventListener("click", (event) => {
       event.stopPropagation();
