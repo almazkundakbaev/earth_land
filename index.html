@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Реестр земельных проектов</title>
-    <link rel="stylesheet" href="styles.css?v=20260610-10" />
+    <link rel="stylesheet" href="styles.css?v=20260611-1" />
   </head>
   <body>
     <section class="auth-view" id="authView">
@@ -79,10 +79,15 @@
             <small>доступно админу</small>
           </div>
         </div>
+        <div class="cabinet-actions">
+          <button class="primary-button" id="goProjectsBtn" type="button">Проекты</button>
+          <button class="secondary-button" id="goUsersBtn" type="button">Пользователи и роли</button>
+        </div>
       </section>
       <section class="panel user-admin-panel" id="userAdminPanel" hidden>
         <div class="panel-heading">
           <h2>Пользователи и роли</h2>
+          <button class="secondary-button" id="backToCabinetFromUsersBtn" type="button">Назад в кабинет</button>
         </div>
         <form class="user-create-form" id="createUserForm">
           <input id="newUserFullName" type="text" placeholder="Имя" />
@@ -103,6 +108,7 @@
             <p>Каждая строка - отдельный участок. Откройте проект, чтобы заполнить детали.</p>
           </div>
           <div class="registry-actions">
+            <button class="secondary-button" id="backToCabinetFromProjectsBtn" type="button">Кабинет</button>
             <input id="searchInput" type="search" placeholder="Поиск по названию, адресу, статусу" />
             <button class="primary-button" id="newProjectBtn" type="button">+ Новый проект</button>
             <button class="secondary-button danger" id="deleteSelectedBtn" type="button">Удалить</button>
@@ -234,6 +240,6 @@
     </template>
 
     <script src="api-config.js"></script>
-    <script src="script.js?v=20260610-11"></script>
+    <script src="script.js?v=20260611-1"></script>
   </body>
 </html>

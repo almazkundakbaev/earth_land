@@ -10,7 +10,7 @@ const state = {
   activeId: null,
   selectedIds: new Set(),
   deleteMode: false,
-  view: "registry",
+  view: "cabinet",
   user: null,
   profile: null,
   serverMode: false,
@@ -54,6 +54,10 @@ const elements = {
   cabinetProjects: document.querySelector("#cabinetProjects"),
   cabinetUsers: document.querySelector("#cabinetUsers"),
   cabinetUsersCard: document.querySelector("#cabinetUsersCard"),
+  goProjectsBtn: document.querySelector("#goProjectsBtn"),
+  goUsersBtn: document.querySelector("#goUsersBtn"),
+  backToCabinetFromProjectsBtn: document.querySelector("#backToCabinetFromProjectsBtn"),
+  backToCabinetFromUsersBtn: document.querySelector("#backToCabinetFromUsersBtn"),
   userAdminPanel: document.querySelector("#userAdminPanel"),
   createUserForm: document.querySelector("#createUserForm"),
   newUserFullName: document.querySelector("#newUserFullName"),
@@ -245,6 +249,28 @@ function bindEvents() {
     await createUserFromAdmin();
   });
 
+  elements.goProjectsBtn?.addEventListener("click", () => {
+    state.view = "registry";
+    render();
+  });
+  elements.goUsersBtn?.addEventListener("click", () => {
+    if (state.profile?.role !== "admin") {
+      return;
+    }
+    state.view = "users";
+    render();
+  });
+  elements.backToCabinetFromProjectsBtn?.addEventListener("click", () => {
+    state.view = "cabinet";
+    state.deleteMode = false;
+    state.selectedIds.clear();
+    render();
+  });
+  elements.backToCabinetFromUsersBtn?.addEventListener("click", () => {
+    state.view = "cabinet";
+    render();
+  });
+
   elements.signUpBtn?.addEventListener("click", signUp);
   elements.signOutBtn?.addEventListener("click", signOut);
 
@@ -340,6 +366,7 @@ async function signIn() {
 
   if (login === "123" && password === "123") {
     activateTestAdmin();
+    state.view = "cabinet";
     await loadInitialProjects();
     updateAuthState();
     render();
@@ -365,6 +392,7 @@ async function signIn() {
     state.user = data.user;
     state.profile = data.user;
     state.serverMode = true;
+    state.view = "cabinet";
     await loadUsers();
     await loadInitialProjects();
     updateAuthState();
@@ -400,6 +428,7 @@ async function signOut() {
   state.profile = null;
   state.serverMode = false;
   state.users = [];
+  state.view = "cabinet";
   localStorage.removeItem(API_TOKEN_KEY);
   await loadInitialProjects();
   updateAuthState();
@@ -643,8 +672,15 @@ function render() {
     return;
   }
 
+  if (state.view === "users" && state.profile?.role !== "admin") {
+    state.view = "cabinet";
+  }
+
+  if (elements.cabinetPanel) {
+    elements.cabinetPanel.hidden = state.view !== "cabinet";
+  }
   if (elements.userAdminPanel) {
-    elements.userAdminPanel.hidden = state.profile?.role !== "admin";
+    elements.userAdminPanel.hidden = state.view !== "users" || state.profile?.role !== "admin";
   }
   elements.registryView.hidden = state.view !== "registry";
   elements.detailView.hidden = state.view !== "detail";
@@ -687,6 +723,9 @@ function renderCabinet() {
   }
   if (elements.cabinetUsersCard) {
     elements.cabinetUsersCard.hidden = role !== "admin";
+  }
+  if (elements.goUsersBtn) {
+    elements.goUsersBtn.hidden = role !== "admin";
   }
 }
 

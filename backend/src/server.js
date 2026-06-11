@@ -5,6 +5,7 @@ const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/users");
 const projectRoutes = require("./routes/projects");
 const fileRoutes = require("./routes/files");
+const { query } = require("./db");
 
 const app = express();
 
@@ -18,6 +19,15 @@ app.use(express.json({ limit: "10mb" }));
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
+});
+
+app.get("/api/health/db", async (_req, res, next) => {
+  try {
+    await query("select 1");
+    res.json({ ok: true, database: "connected" });
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.use("/api/auth", authRoutes);

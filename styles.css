@@ -175,6 +175,10 @@ button {
   background: var(--panel-soft);
 }
 
+.cabinet-card[hidden] {
+  display: none;
+}
+
 .cabinet-card span,
 .cabinet-card small {
   color: var(--muted);
@@ -188,6 +192,17 @@ button {
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.cabinet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.cabinet-actions button {
+  min-width: 180px;
 }
 
 .user-create-form {
