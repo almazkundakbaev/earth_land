@@ -43,7 +43,11 @@ const elements = {
   showLoginBtn: document.querySelector("#showLoginBtn"),
   showRegisterBtn: document.querySelector("#showRegisterBtn"),
   serverStatus: document.querySelector("#serverStatus"),
-  appServerStatus: document.querySelector("#appServerStatus"),
+  headerMenuBtn: document.querySelector("#headerMenuBtn"),
+  headerMenu: document.querySelector("#headerMenu"),
+  headerUserName: document.querySelector("#headerUserName"),
+  headerUserLogin: document.querySelector("#headerUserLogin"),
+  headerUserRole: document.querySelector("#headerUserRole"),
   signUpBtn: document.querySelector("#signUpBtn"),
   signOutBtn: document.querySelector("#signOutBtn"),
   cabinetPanel: document.querySelector("#cabinetPanel"),
@@ -272,6 +276,18 @@ function bindEvents() {
     render();
   });
   elements.userSearchInput?.addEventListener("input", renderUsers);
+  elements.headerMenuBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    elements.headerMenu.hidden = !elements.headerMenu.hidden;
+  });
+  document.addEventListener("click", (event) => {
+    if (!elements.headerMenu || elements.headerMenu.hidden) {
+      return;
+    }
+    if (!elements.headerMenu.contains(event.target) && !elements.headerMenuBtn?.contains(event.target)) {
+      elements.headerMenu.hidden = true;
+    }
+  });
 
   elements.signUpBtn?.addEventListener("click", signUp);
   elements.signOutBtn?.addEventListener("click", signOut);
@@ -634,6 +650,27 @@ function updateAuthState() {
   }
 }
 
+function updateHeaderAccount() {
+  if (!elements.headerUserName || !elements.headerUserLogin || !elements.headerUserRole) {
+    return;
+  }
+
+  if (!state.user) {
+    elements.headerUserName.textContent = "-";
+    elements.headerUserLogin.textContent = "Логин: -";
+    elements.headerUserRole.textContent = "Роль: -";
+    return;
+  }
+
+  const role = state.profile?.role === "admin" ? "admin" : "user";
+  const name = state.user.full_name || state.user.fullName || state.user.email || "Пользователь";
+  const login = state.user.email || "без email";
+
+  elements.headerUserName.textContent = name;
+  elements.headerUserLogin.textContent = `Логин: ${login}`;
+  elements.headerUserRole.textContent = `Роль: ${role}`;
+}
+
 async function loadInitialProjects() {
   state.projects = state.serverMode ? await loadServerProjects() : loadLocalProjects();
   state.activeId = state.projects[0]?.id || null;
@@ -671,6 +708,8 @@ function render() {
   if (!isAuthenticated) {
     return;
   }
+
+  updateHeaderAccount();
 
   if (state.view === "users" && state.profile?.role !== "admin") {
     state.view = "cabinet";

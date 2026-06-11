@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Реестр земельных проектов</title>
-    <link rel="stylesheet" href="styles.css?v=20260611-3" />
+    <link rel="stylesheet" href="styles.css?v=20260611-7" />
   </head>
   <body>
     <section class="auth-view" id="authView">
@@ -47,13 +47,33 @@
       </div>
     </section>
     <main class="page-shell" id="appShell" hidden>
-      <section class="server-panel">
-        <div>
-          <h2>Сервер</h2>
-          <p id="appServerStatus"></p>
+      <header class="app-header">
+        <button class="header-menu-button" id="headerMenuBtn" type="button" aria-label="Меню">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <div class="header-menu" id="headerMenu" hidden>
+          <button class="header-menu-item" id="signOutBtn" type="button">Выйти из аккаунта</button>
         </div>
-        <button class="secondary-button" id="signOutBtn" type="button">Выйти</button>
-      </section>
+        <a class="header-brand" href="#" aria-label="ZOLO GROUP">
+          <svg class="zolo-logo" viewBox="0 0 760 260" role="img" aria-label="ZOLO GROUP">
+            <rect x="44" y="34" width="68" height="56"></rect>
+            <path d="M112 112 L112 194 L42 194 Z"></path>
+            <path d="M266 36 C205 45 166 79 166 118 C166 158 206 190 266 200 L266 143 C246 137 235 127 235 116 C235 105 247 95 266 88 Z"></path>
+            <path d="M354 40 H424 V153 H470 V196 H354 Z"></path>
+            <path fill-rule="evenodd" d="M602 36 C675 36 734 72 734 116 C734 160 675 196 602 196 C529 196 470 160 470 116 C470 72 529 36 602 36 Z M602 86 C565 86 536 99 536 116 C536 133 565 146 602 146 C639 146 668 133 668 116 C668 99 639 86 602 86 Z"></path>
+            <text x="354" y="238">ZOLO GROUP</text>
+          </svg>
+        </a>
+        <a class="header-contact" href="tel:+77772090069">+7 777 209 00 69</a>
+        <a class="header-contact" href="mailto:urbiskyport@gmail.com">urbiskyport@gmail.com</a>
+        <div class="header-account">
+          <span class="header-account-item">Имя: <strong id="headerUserName">-</strong></span>
+          <span class="header-account-item" id="headerUserLogin">Логин: -</span>
+          <span class="header-account-item" id="headerUserRole">Роль: -</span>
+        </div>
+      </header>
       <section class="panel cabinet-panel" id="cabinetPanel">
         <div class="panel-heading">
           <div>
@@ -279,6 +299,6 @@
     </template>
 
     <script src="api-config.js"></script>
-    <script src="script.js?v=20260611-3"></script>
+    <script src="script.js?v=20260611-7"></script>
   </body>
 </html>
