@@ -70,31 +70,6 @@ button {
   line-height: 1.45;
 }
 
-.auth-tabs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  padding: 4px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--panel-soft);
-}
-
-.auth-tab {
-  min-height: 36px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--muted);
-  font-weight: 800;
-}
-
-.auth-tab.is-active {
-  background: #ffffff;
-  color: var(--text);
-  box-shadow: 0 1px 4px rgba(28, 36, 48, 0.12);
-}
-
 .auth-form-page {
   display: grid;
   gap: 12px;
@@ -764,6 +739,49 @@ label {
   align-items: start;
 }
 
+.deadline-picker {
+  position: relative;
+  display: grid;
+  gap: 8px;
+}
+
+.deadline-date-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  align-items: stretch;
+}
+
+.deadline-date-input {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  cursor: default;
+}
+
+.deadline-calendar-button {
+  display: grid;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-left: 0;
+  border-radius: 0 8px 8px 0;
+  background: var(--panel-soft);
+  color: var(--accent-strong);
+  place-items: center;
+}
+
+.deadline-calendar-button:hover {
+  background: rgba(23, 107, 93, 0.1);
+}
+
+.deadline-calendar-button svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .deadline-fields textarea {
   border-color: var(--line);
   background: #ffffff;
@@ -790,6 +808,10 @@ label {
   grid-template-columns: max-content minmax(220px, 1fr);
   gap: 8px;
   align-items: start;
+}
+
+.param-file-comment {
+  margin-top: 8px;
 }
 
 .inline-file-list {

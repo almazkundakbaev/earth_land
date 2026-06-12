@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Реестр земельных проектов</title>
-    <link rel="stylesheet" href="styles.css?v=20260611-7" />
+    <link rel="stylesheet" href="styles.css?v=20260612-4" />
   </head>
   <body>
     <section class="auth-view" id="authView">
@@ -13,10 +13,6 @@
           <p class="eyebrow">Доступ к системе</p>
           <h1 id="authTitle">Авторизация</h1>
           <p id="serverStatus">API не настроен.</p>
-        </div>
-        <div class="auth-tabs">
-          <button class="auth-tab is-active" id="showLoginBtn" type="button">Вход</button>
-          <button class="auth-tab" id="showRegisterBtn" type="button">Регистрация</button>
         </div>
         <form class="auth-form-page" id="authForm">
           <label>
@@ -28,21 +24,6 @@
             <input id="authPassword" type="password" placeholder="Пароль" autocomplete="current-password" required />
           </label>
           <button class="primary-button" type="submit">Войти</button>
-        </form>
-        <form class="auth-form-page" id="registerForm" hidden>
-          <label>
-            Имя
-            <input id="registerFullName" type="text" placeholder="Имя сотрудника" autocomplete="name" />
-          </label>
-          <label>
-            Email
-            <input id="registerEmail" type="email" placeholder="email@company.com" autocomplete="username" required />
-          </label>
-          <label>
-            Пароль
-            <input id="registerPassword" type="password" placeholder="Пароль" autocomplete="new-password" required />
-          </label>
-          <button class="primary-button" type="submit">Зарегистрироваться</button>
         </form>
       </div>
     </section>
@@ -206,8 +187,8 @@
         <form class="project-form" id="projectForm">
           <section class="panel hero-panel">
             <div class="hero-copy">
-              <p class="eyebrow">Карточка проекта</p>
-              <input class="title-input" id="title" name="title" placeholder="Название проекта" required />
+              <p class="eyebrow">Название проекта</p>
+              <input class="title-input" id="title" name="title" placeholder="Введите название проекта" required />
             </div>
           </section>
 
@@ -230,11 +211,11 @@
               </label>
               <label>
                 Ответственный
-                <input id="responsible" name="responsible" placeholder="Имя сотрудника или отдел" />
+                <input id="responsible" name="responsible" placeholder="Имя сотрудника" />
               </label>
               <label>
                 Площадь
-                <input id="area" name="area" placeholder="Рассчитывается по границам или вводится вручную" />
+                <input id="area" name="area" placeholder="Введите" />
               </label>
             </div>
           </section>
@@ -299,6 +280,6 @@
     </template>
 
     <script src="api-config.js"></script>
-    <script src="script.js?v=20260611-7"></script>
+    <script src="script.js?v=20260612-5"></script>
   </body>
 </html>

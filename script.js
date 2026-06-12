@@ -35,20 +35,13 @@ const elements = {
   authForm: document.querySelector("#authForm"),
   authEmail: document.querySelector("#authEmail"),
   authPassword: document.querySelector("#authPassword"),
-  registerForm: document.querySelector("#registerForm"),
-  registerFullName: document.querySelector("#registerFullName"),
-  registerEmail: document.querySelector("#registerEmail"),
-  registerPassword: document.querySelector("#registerPassword"),
   authTitle: document.querySelector("#authTitle"),
-  showLoginBtn: document.querySelector("#showLoginBtn"),
-  showRegisterBtn: document.querySelector("#showRegisterBtn"),
   serverStatus: document.querySelector("#serverStatus"),
   headerMenuBtn: document.querySelector("#headerMenuBtn"),
   headerMenu: document.querySelector("#headerMenu"),
   headerUserName: document.querySelector("#headerUserName"),
   headerUserLogin: document.querySelector("#headerUserLogin"),
   headerUserRole: document.querySelector("#headerUserRole"),
-  signUpBtn: document.querySelector("#signUpBtn"),
   signOutBtn: document.querySelector("#signOutBtn"),
   cabinetPanel: document.querySelector("#cabinetPanel"),
   cabinetTitle: document.querySelector("#cabinetTitle"),
@@ -198,6 +191,15 @@ const defaultSections = [
     ],
   },
 ];
+moveSectionAfterIdentification("Контактная");
+orderDefaultSections([
+  "РљРѕРЅС‚Р°РєС‚РЅР°СЏ",
+  "РРґРµРЅС‚РёС„РёРєР°С†РёСЏ",
+  "Р¤РёР·РёС‡РµСЃРєРёРµ",
+  "РРЅС„СЂР°СЃС‚СЂСѓРєС‚СѓСЂР°",
+]);
+renumberDefaultSections();
+
 const statusPhases = [
   {
     phase: "Фаза 1 — Входящая заявка",
@@ -223,6 +225,43 @@ const statusPhases = [
 
 init();
 
+function moveSectionAfterIdentification(titlePart) {
+  const currentIndex = defaultSections.findIndex((section) => section.title.includes(titlePart));
+
+  if (currentIndex <= 0) {
+    return;
+  }
+
+  const [section] = defaultSections.splice(currentIndex, 1);
+  defaultSections.splice(1, 0, section);
+}
+
+function orderDefaultSections(titleParts) {
+  const matchers = [
+    (section) => section.items.some(([label]) => label === "Email"),
+    (section) => section.items.some((item) => item[4] === "map"),
+    (section) => section.items.length === 6 && section.items.every((item) => !item[4]),
+    (section) => section.items.length === 8 && section.items.every((item) => !item[4]),
+  ];
+  const ordered = [];
+
+  matchers.forEach((matcher) => {
+    const index = defaultSections.findIndex(matcher);
+
+    if (index >= 0) {
+      ordered.push(...defaultSections.splice(index, 1));
+    }
+  });
+
+  defaultSections.unshift(...ordered);
+}
+
+function renumberDefaultSections() {
+  defaultSections.forEach((section, index) => {
+    section.title = section.title.replace(/^\d+\.\s*/, `${index + 1}. `);
+  });
+}
+
 async function init() {
   bindEvents();
 
@@ -242,13 +281,6 @@ function bindEvents() {
     await signIn();
   });
 
-  elements.registerForm?.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    await registerUser();
-  });
-
-  elements.showLoginBtn?.addEventListener("click", () => setAuthTab("login"));
-  elements.showRegisterBtn?.addEventListener("click", () => setAuthTab("register"));
   elements.createUserForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
     await createUserFromAdmin();
@@ -289,19 +321,19 @@ function bindEvents() {
     }
   });
 
-  elements.signUpBtn?.addEventListener("click", signUp);
   elements.signOutBtn?.addEventListener("click", signOut);
 
   elements.newProjectBtn.addEventListener("click", () => {
     const project = createProject();
     state.projects.unshift(project);
-    state.activeId = null;
+    state.activeId = project.id;
+    state.view = "detail";
     state.deleteMode = false;
     state.selectedIds.clear();
     state.map.mode = "move";
     elements.search.value = "";
     saveLocalProjects();
-    renderProjectTable();
+    render();
     persistProject(project).catch((error) => {
       console.error(error);
       alert("Проект добавлен в таблицу, но пока не сохранился на сервер. Проверьте подключение API.");
@@ -995,6 +1027,18 @@ function renderSections(project) {
     });
   });
 
+  sectionList.querySelectorAll("[data-calendar-button]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const activeProject = getActiveProject();
+      const sectionIndex = Number(button.dataset.sectionIndex);
+      const itemIndex = Number(button.dataset.itemIndex);
+      const item = activeProject.sections[sectionIndex].items[itemIndex];
+
+      item.calendarOpen = !item.calendarOpen;
+      renderSections(activeProject);
+    });
+  });
+
   sectionList.querySelectorAll("[data-calendar-month], [data-calendar-year]").forEach((select) => {
     select.addEventListener("change", () => {
       const activeProject = getActiveProject();
@@ -1020,6 +1064,7 @@ function renderSections(project) {
       item.date = button.dataset.calendarDay;
       item.calendarMonth = selected.getMonth();
       item.calendarYear = selected.getFullYear();
+      item.calendarOpen = false;
       queueProjectSave(activeProject);
       renderSections(activeProject);
     });
@@ -1046,7 +1091,18 @@ function renderParamRow(project, item, sectionIndex, itemIndex) {
         </td>
         <td>
           <div class="deadline-fields">
-            ${renderInlineCalendar(item, sectionIndex, itemIndex)}
+            <div class="deadline-picker">
+              <div class="deadline-date-control">
+                <input class="deadline-date-input" type="text" readonly placeholder="Выберите дату" value="${escapeHtml(formatDeadlineInputDate(item.date))}" />
+                <button class="deadline-calendar-button" data-calendar-button data-section-index="${sectionIndex}" data-item-index="${itemIndex}" type="button" aria-label="Открыть календарь">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="4" y="5" width="16" height="15" rx="2"></rect>
+                    <path d="M8 3v4M16 3v4M4 10h16"></path>
+                  </svg>
+                </button>
+              </div>
+              ${item.calendarOpen ? renderInlineCalendar(item, sectionIndex, itemIndex) : ""}
+            </div>
             <label>
               <textarea aria-label="Комментарии" data-param-input data-value-key="comment" data-section-index="${sectionIndex}" data-item-index="${itemIndex}" rows="2" placeholder="Комментарии">${escapeHtml(item.comment || "")}</textarea>
             </label>
@@ -1097,6 +1153,7 @@ function renderParamRow(project, item, sectionIndex, itemIndex) {
             </button>
             ${renderInlineFileList(files, item.type)}
           </div>
+          <textarea class="param-file-comment" data-param-input data-section-index="${sectionIndex}" data-item-index="${itemIndex}" rows="2" placeholder="Комментарий к ${item.type === "documents" ? "документам" : "материалам"}">${escapeHtml(item.value || "")}</textarea>
         </td>
       </tr>
     `;
@@ -1210,6 +1267,11 @@ function formatDeadlineDate(value) {
     month: "long",
     year: "numeric",
   });
+}
+
+function formatDeadlineInputDate(value) {
+  const date = parseIsoDate(value);
+  return date ? date.toLocaleDateString("ru-RU") : "";
 }
 
 function getParamActionText(project, item) {
@@ -1525,6 +1587,7 @@ function getProjectSections(project) {
         comment: "",
         calendarMonth: "",
         calendarYear: "",
+        calendarOpen: false,
       })),
     }));
   }
@@ -2136,6 +2199,7 @@ function createProject() {
         comment: "",
         calendarMonth: "",
         calendarYear: "",
+        calendarOpen: false,
       })),
     })),
     createdAt: now,
@@ -2159,7 +2223,10 @@ function normalizeSections(sections) {
   const existingSections = Array.isArray(sections) ? sections : [];
 
   return defaultSections.map((template, sectionIndex) => {
-    const existingSection = existingSections.find((section) => section.title === template.title) || existingSections[sectionIndex] || {};
+    const existingSection =
+      existingSections.find((section) => normalizeSectionTitle(section.title) === normalizeSectionTitle(template.title)) ||
+      existingSections[sectionIndex] ||
+      {};
     const existingItems = Array.isArray(existingSection.items) ? existingSection.items : [];
 
     return {
@@ -2179,10 +2246,15 @@ function normalizeSections(sections) {
           comment: typeof existingItem === "object" ? existingItem.comment || "" : "",
           calendarMonth: typeof existingItem === "object" ? existingItem.calendarMonth ?? "" : "",
           calendarYear: typeof existingItem === "object" ? existingItem.calendarYear ?? "" : "",
+          calendarOpen: false,
         };
       }),
     };
   });
+}
+
+function normalizeSectionTitle(title = "") {
+  return String(title).replace(/^\d+\.\s*/, "");
 }
 
 function findExistingItem(existingItems, label, itemIndex) {
