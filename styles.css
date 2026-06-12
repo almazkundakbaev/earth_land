@@ -816,6 +816,19 @@ label {
   margin-top: 8px;
 }
 
+.inline-file-count {
+  display: grid;
+  min-height: 34px;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .inline-file-list {
   display: grid;
   gap: 5px;
@@ -2168,7 +2181,6 @@ label {
 
   .project-table .select-col::before,
   .project-table td:nth-child(2)::before,
-  .project-table td:nth-child(4)::before,
   .project-table td:nth-child(8)::before {
     display: none;
   }
@@ -2187,8 +2199,8 @@ label {
   .project-table td:nth-child(7) {
     grid-column: 2;
     display: grid;
-    grid-template-columns: 92px minmax(0, 1fr);
-    gap: 8px;
+    grid-template-columns: 118px minmax(0, 1fr);
+    gap: 14px;
     margin-top: 8px;
     color: #344054;
     font-size: 13px;
@@ -2208,7 +2220,19 @@ label {
 
   .project-table td:nth-child(4) {
     grid-column: 2;
+    display: grid;
+    grid-template-columns: 118px minmax(0, 1fr);
+    gap: 14px;
+    align-items: center;
     margin-top: 8px;
+  }
+
+  .project-table td:nth-child(4)::before {
+    display: block;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
   }
 
   .project-table td:nth-child(8) {

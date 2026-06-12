@@ -320,6 +320,14 @@ function bindEvents() {
       elements.headerMenu.hidden = true;
     }
   });
+  document.addEventListener("click", (event) => {
+    if (!elements.statusDropdown || elements.statusDropdown.hidden) {
+      return;
+    }
+    if (!elements.statusDropdown.contains(event.target) && !elements.statusPickerBtn?.contains(event.target)) {
+      elements.statusDropdown.hidden = true;
+    }
+  });
 
   elements.signOutBtn?.addEventListener("click", signOut);
 
@@ -398,7 +406,8 @@ function bindEvents() {
     render();
   });
 
-  elements.statusPickerBtn.addEventListener("click", () => {
+  elements.statusPickerBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
     renderStatusDropdown();
     elements.statusDropdown.hidden = !elements.statusDropdown.hidden;
   });
@@ -1151,7 +1160,7 @@ function renderParamRow(project, item, sectionIndex, itemIndex) {
             <button class="secondary-button param-action-button" data-param-action="${item.type}" data-section-index="${sectionIndex}" data-item-index="${itemIndex}" type="button">
               ${escapeHtml(getParamActionText(project, item))}
             </button>
-            ${renderInlineFileList(files, item.type)}
+            <div class="inline-file-count">${escapeHtml(getInlineFileCountText(files, item.type))}</div>
           </div>
           <textarea class="param-file-comment" data-param-input data-section-index="${sectionIndex}" data-item-index="${itemIndex}" rows="2" placeholder="Комментарий к ${item.type === "documents" ? "документам" : "материалам"}">${escapeHtml(item.value || "")}</textarea>
         </td>
@@ -1322,6 +1331,15 @@ function renderInlineFileList(files, type) {
       ${files.map((file) => renderMediaPreview(file)).join("")}
     </div>
   `;
+}
+
+function getInlineFileCountText(files, type) {
+  if (files.length === 0) {
+    return type === "documents" ? "Документы не загружены" : "Материалы не загружены";
+  }
+
+  const label = type === "documents" ? "Загружено документов" : "Загружено материалов";
+  return `${label}: ${files.length}`;
 }
 
 function renderMediaPreview(file) {
