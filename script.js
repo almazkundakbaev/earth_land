@@ -1318,17 +1318,23 @@ function renderInlineFileList(files, type) {
   }
 
   return `
-    <div class="inline-file-list">
-      ${files
-        .map(
-          (file) => `
-            <a href="${getFileUrl(file)}" target="_blank" rel="noreferrer" download="${escapeHtml(file.name)}">
-              ${escapeHtml(file.name)}
-            </a>
-          `,
-        )
-        .join("")}
+    <div class="inline-media-grid">
+      ${files.map((file) => renderMediaPreview(file)).join("")}
     </div>
+  `;
+}
+
+function renderMediaPreview(file) {
+  const fileUrl = getFileUrl(file);
+  const isImage = file.type?.startsWith("image/");
+
+  return `
+    <a class="inline-media-preview" href="${fileUrl}" target="_blank" rel="noreferrer" download="${escapeHtml(file.name)}">
+      <span class="inline-media-thumb">
+        ${isImage ? `<img src="${fileUrl}" alt="${escapeHtml(file.name)}" />` : `<span>${escapeHtml(getFileKindLabel(file))}</span>`}
+      </span>
+      <span class="inline-media-name">${escapeHtml(file.name)}</span>
+    </a>
   `;
 }
 
@@ -1345,9 +1351,21 @@ function renderDocumentPreview(file) {
             : `<a href="${fileUrl}" target="_blank" rel="noreferrer">Открыть документ</a>`
         }
       </div>
-      <a class="document-preview-name" href="${fileUrl}" target="_blank" rel="noreferrer" download="${escapeHtml(file.name)}">${escapeHtml(file.name)}</a>
+      <a class="document-preview-name" href="${fileUrl}" target="_blank" rel="noreferrer" download="${escapeHtml(file.name)}">${escapeHtml(getFileKindLabel(file))}: ${escapeHtml(file.name)}</a>
     </div>
   `;
+}
+
+function getFileKindLabel(file) {
+  const name = (file.name || "").toLowerCase();
+
+  if (file.type === "application/pdf" || name.endsWith(".pdf")) return "PDF";
+  if (name.endsWith(".doc") || name.endsWith(".docx")) return "WORD";
+  if (name.endsWith(".xls") || name.endsWith(".xlsx")) return "EXCEL";
+  if (name.endsWith(".ppt") || name.endsWith(".pptx")) return "PPT";
+  if (file.type?.startsWith("image/")) return "IMG";
+  if (file.type?.startsWith("video/")) return "VIDEO";
+  return "FILE";
 }
 
 function isParamFilled(project, item) {
