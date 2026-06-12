@@ -1592,7 +1592,6 @@ function getProjectSections(project) {
     }));
   }
 
-  project.sections = normalizeSections(project.sections);
   return project.sections;
 }
 

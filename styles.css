@@ -899,7 +899,7 @@ label {
 }
 
 .calendar-selected-card {
-  display: grid;
+  display: none;
   gap: 3px;
   padding: 10px;
   border: 1px solid rgba(23, 107, 93, 0.24);
@@ -989,18 +989,19 @@ label {
 }
 
 .title-input {
-  min-height: 58px;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  font-size: clamp(30px, 5vw, 56px);
-  font-weight: 800;
-  line-height: 1;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: normal;
 }
 
 .title-input:focus {
-  box-shadow: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(23, 107, 93, 0.12);
 }
 
 .hero-copy textarea {
@@ -1718,15 +1719,24 @@ label {
 }
 
 @media (max-width: 680px) {
+  body {
+    font-size: 14px;
+  }
+
+  .page-shell {
+    padding: 10px;
+  }
+
   .app-header {
     grid-template-columns: 38px 1fr;
     gap: 12px;
     padding: 11px 12px;
+    margin-bottom: 10px;
   }
 
   .zolo-logo {
-    width: 168px;
-    height: 56px;
+    width: min(168px, 58vw);
+    height: auto;
   }
 
   .header-account {
@@ -1748,6 +1758,21 @@ label {
     padding: 18px;
   }
 
+  .panel,
+  .chapter,
+  .user-management-box {
+    padding: 12px;
+  }
+
+  .registry-toolbar h2 {
+    font-size: 23px;
+  }
+
+  .registry-toolbar p,
+  .chapter-heading p {
+    font-size: 13px;
+  }
+
   .user-create-form,
   .user-row,
   .cabinet-grid {
@@ -1766,12 +1791,188 @@ label {
     flex-direction: column;
   }
 
+  .cabinet-actions button,
+  .primary-button,
+  .secondary-button {
+    min-height: 42px;
+  }
+
+  .table-wrap,
+  .user-table-wrap,
+  .param-table-wrap {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .project-table,
+  .project-table thead,
+  .project-table tbody,
+  .project-table tr,
+  .project-table th,
+  .project-table td,
+  .user-table,
+  .user-table thead,
+  .user-table tbody,
+  .user-table tr,
+  .user-table th,
+  .user-table td {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .project-table thead,
+  .user-table thead {
+    display: none;
+  }
+
+  .project-table tr,
+  .user-table tr {
+    margin-bottom: 10px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #ffffff;
+    box-shadow: 0 10px 24px rgba(28, 36, 48, 0.06);
+  }
+
+  .project-table td,
+  .user-table td {
+    display: grid;
+    grid-template-columns: 112px minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    min-height: 42px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+  }
+
+  .project-table td::before,
+  .user-table td::before {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  .project-table td:nth-child(1)::before {
+    content: "Выбор";
+  }
+
+  .project-table td:nth-child(2)::before {
+    content: "Название";
+  }
+
+  .project-table td:nth-child(3)::before {
+    content: "Адрес";
+  }
+
+  .project-table td:nth-child(4)::before {
+    content: "Статус";
+  }
+
+  .project-table td:nth-child(5)::before {
+    content: "Дата";
+  }
+
+  .project-table td:nth-child(6)::before {
+    content: "Ответственный";
+  }
+
+  .project-table td:nth-child(7)::before {
+    content: "Площадь";
+  }
+
+  .project-table td:nth-child(8)::before {
+    content: "Открыть";
+  }
+
+  .user-table td:nth-child(1)::before {
+    content: "ФИО";
+  }
+
+  .user-table td:nth-child(2)::before {
+    content: "Email";
+  }
+
+  .user-table td:nth-child(3)::before {
+    content: "Роль";
+  }
+
+  .user-table td:nth-child(4)::before {
+    content: "Статус";
+  }
+
+  .user-table td:nth-child(5)::before {
+    content: "Действие";
+  }
+
+  .project-table td:last-child,
+  .user-table td:last-child {
+    border-bottom: 0;
+    text-align: left;
+  }
+
+  .select-col {
+    width: 100%;
+  }
+
+  .project-select {
+    width: 22px;
+    min-height: 22px;
+  }
+
+  .table-open-button,
+  .user-table .user-save-btn {
+    width: 100%;
+  }
+
+  .param-table,
+  .param-table tbody,
+  .param-table tr,
+  .param-table td {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .param-table tr {
+    margin-bottom: 10px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #ffffff;
+  }
+
+  .param-table td {
+    padding: 10px;
+  }
+
+  .param-table td:first-child {
+    width: 100%;
+    background: var(--panel-soft);
+  }
+
+  .param-table textarea {
+    min-height: 92px;
+    border-color: var(--line);
+    background: #ffffff;
+  }
+
+  .param-action-button {
+    width: 100%;
+  }
+
   .inline-map-panel .map-actions {
-    overflow-x: auto;
+    display: grid;
+    overflow-x: visible;
   }
 
   .inline-map-panel .map-actions button {
-    width: auto;
+    width: 100%;
   }
 
   .fields-grid,
@@ -1791,11 +1992,55 @@ label {
     grid-template-columns: 1fr;
   }
 
+  .inline-calendar {
+    width: 100%;
+  }
+
+  .calendar-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .calendar-day {
+    min-height: 36px;
+  }
+
   .status-option {
     grid-template-columns: 1fr;
   }
 
   .file-row {
     grid-template-columns: 1fr;
+  }
+
+  .status-dropdown {
+    position: fixed;
+    inset: 12px;
+    z-index: 60;
+    max-height: calc(100vh - 24px);
+  }
+
+  .modal {
+    padding: 10px;
+  }
+
+  .modal-card {
+    width: 100%;
+    max-height: calc(100vh - 20px);
+    padding: 14px;
+  }
+
+  .modal-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .document-preview-grid {
+    grid-template-columns: 1fr;
+    max-height: 220px;
+  }
+
+  .inline-map-frame {
+    height: 260px;
+    min-height: 260px;
   }
 }
