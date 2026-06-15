@@ -644,6 +644,38 @@ async function updateUserFromAdmin(userId, updates) {
   }
 }
 
+async function deleteUserFromAdmin(userId) {
+  if (state.profile?.role !== "admin") {
+    return;
+  }
+
+  if (userId === state.user?.id) {
+    alert("Нельзя удалить текущий аккаунт.");
+    return;
+  }
+
+  const user = state.users.find((item) => item.id === userId);
+  const userName = user?.full_name || user?.email || "пользователя";
+
+  if (!confirm(`Удалить ${userName}? Это действие нельзя отменить.`)) {
+    return;
+  }
+
+  if (!state.serverMode) {
+    state.users = state.users.filter((item) => item.id !== userId);
+    renderUsers();
+    return;
+  }
+
+  try {
+    await apiRequest(`/users/${userId}`, { method: "DELETE" });
+    await loadUsers();
+    renderUsers();
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
 function canDeleteProjects() {
   return !state.serverMode || state.profile?.role === "admin";
 }
@@ -809,46 +841,6 @@ function renderCabinet() {
   }
 }
 
-function renderUsersLegacy() {
-  if (!elements.userList || state.profile?.role !== "admin") {
-    return;
-  }
-
-  if (state.users.length === 0) {
-    elements.userList.innerHTML = `<div class="user-empty">Пользователей пока нет</div>`;
-    return;
-  }
-
-  elements.userList.innerHTML = "";
-  state.users.forEach((user) => {
-    const row = document.createElement("div");
-    row.className = "user-row";
-    row.innerHTML = `
-      <div class="user-meta">
-        <strong>${escapeHtml(user.full_name || user.email)}</strong>
-        <span>${escapeHtml(user.email)}</span>
-      </div>
-      <select class="user-role-select" aria-label="Роль пользователя">
-        <option value="user" ${user.role === "user" ? "selected" : ""}>user</option>
-        <option value="admin" ${user.role === "admin" ? "selected" : ""}>admin</option>
-      </select>
-      <label class="user-active-toggle">
-        <input class="user-active-checkbox" type="checkbox" ${user.is_active ? "checked" : ""} />
-        Активен
-      </label>
-      <button class="secondary-button user-save-btn" type="button">Сохранить</button>
-    `;
-
-    row.querySelector(".user-save-btn").addEventListener("click", async () => {
-      await updateUserFromAdmin(user.id, {
-        role: row.querySelector(".user-role-select").value,
-        isActive: row.querySelector(".user-active-checkbox").checked,
-      });
-    });
-    elements.userList.append(row);
-  });
-}
-
 function renderUsers() {
   if (!elements.userList || state.profile?.role !== "admin") {
     return;
@@ -861,7 +853,7 @@ function renderUsers() {
   });
 
   if (users.length === 0) {
-    elements.userList.innerHTML = `<tr><td class="user-empty" colspan="5">Пользователей пока нет</td></tr>`;
+    elements.userList.innerHTML = `<tr><td class="user-empty" colspan="4">Пользователей пока нет</td></tr>`;
     return;
   }
 
@@ -884,21 +876,20 @@ function renderUsers() {
         </select>
       </td>
       <td>
-        <label class="user-active-toggle">
-          <input class="user-active-checkbox" type="checkbox" ${user.is_active ? "checked" : ""} />
-          <span>${user.is_active ? "Активен" : "Отключен"}</span>
-        </label>
-      </td>
-      <td>
-        <button class="secondary-button user-save-btn" type="button">Сохранить</button>
+        <div class="user-actions">
+          <button class="secondary-button user-save-btn" type="button">Сохранить</button>
+          <button class="secondary-button user-delete-btn" type="button" ${user.id === state.user.id ? "disabled" : ""}>Удалить</button>
+        </div>
       </td>
     `;
 
     row.querySelector(".user-save-btn").addEventListener("click", async () => {
       await updateUserFromAdmin(user.id, {
         role: row.querySelector(".user-role-select").value,
-        isActive: row.querySelector(".user-active-checkbox").checked,
       });
+    });
+    row.querySelector(".user-delete-btn").addEventListener("click", async () => {
+      await deleteUserFromAdmin(user.id);
     });
     elements.userList.append(row);
   });

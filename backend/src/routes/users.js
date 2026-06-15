@@ -93,4 +93,22 @@ router.patch("/:id", async (req, res, next) => {
   }
 });
 
+router.delete("/:id", async (req, res, next) => {
+  try {
+    if (req.params.id === req.user.id) {
+      return res.status(400).json({ error: "Cannot delete current user" });
+    }
+
+    const { rowCount } = await query("delete from app_users where id = $1", [req.params.id]);
+
+    if (rowCount === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    return res.status(204).send();
+  } catch (error) {
+    return next(error);
+  }
+});
+
 module.exports = router;

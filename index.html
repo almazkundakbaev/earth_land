@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Реестр земельных проектов</title>
-    <link rel="stylesheet" href="styles.css?v=20260612-10" />
+    <link rel="stylesheet" href="styles.css?v=20260612-13" />
   </head>
   <body>
     <section class="auth-view" id="authView">
@@ -38,17 +38,8 @@
           <button class="header-menu-item" id="signOutBtn" type="button">Выйти из аккаунта</button>
         </div>
         <a class="header-brand" href="#" aria-label="ZOLO GROUP">
-          <svg class="zolo-logo" viewBox="0 0 760 260" role="img" aria-label="ZOLO GROUP">
-            <rect x="44" y="34" width="68" height="56"></rect>
-            <path d="M112 112 L112 194 L42 194 Z"></path>
-            <path d="M266 36 C205 45 166 79 166 118 C166 158 206 190 266 200 L266 143 C246 137 235 127 235 116 C235 105 247 95 266 88 Z"></path>
-            <path d="M354 40 H424 V153 H470 V196 H354 Z"></path>
-            <path fill-rule="evenodd" d="M602 36 C675 36 734 72 734 116 C734 160 675 196 602 196 C529 196 470 160 470 116 C470 72 529 36 602 36 Z M602 86 C565 86 536 99 536 116 C536 133 565 146 602 146 C639 146 668 133 668 116 C668 99 639 86 602 86 Z"></path>
-            <text x="354" y="238">ZOLO GROUP</text>
-          </svg>
+          <img class="zolo-logo" src="assets/zolo-logo.png?v=20260612-14" alt="ZOLO GROUP" />
         </a>
-        <a class="header-contact" href="tel:+77772090069">+7 777 209 00 69</a>
-        <a class="header-contact" href="mailto:urbiskyport@gmail.com">urbiskyport@gmail.com</a>
         <div class="header-account">
           <span class="header-account-item">Имя: <strong id="headerUserName">-</strong></span>
           <span class="header-account-item" id="headerUserLogin">Логин: -</span>
@@ -91,7 +82,12 @@
           <button class="secondary-button" id="backToCabinetFromUsersBtn" type="button">Назад в кабинет</button>
         </div>
         <section class="user-management-box">
-          <h3>Добавить нового пользователя</h3>
+          <div class="user-box-heading">
+            <div>
+              <h3>Добавить пользователя</h3>
+              <p>Создайте аккаунт и сразу назначьте нужную роль.</p>
+            </div>
+          </div>
           <form class="user-create-form" id="createUserForm">
             <label>
               ФИО
@@ -113,7 +109,7 @@
                 <option value="admin">admin</option>
               </select>
             </label>
-            <button class="primary-button" type="submit">+ Создать</button>
+            <button class="primary-button user-create-submit" type="submit">Создать пользователя</button>
           </form>
         </section>
         <section class="user-management-box">
@@ -128,8 +124,7 @@
                   <th>ФИО</th>
                   <th>Email</th>
                   <th>Роль</th>
-                  <th>Статус</th>
-                  <th>Действие</th>
+                  <th>Действия</th>
                 </tr>
               </thead>
               <tbody id="userList"></tbody>

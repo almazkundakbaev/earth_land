@@ -88,7 +88,7 @@ button {
 .app-header {
   display: grid;
   position: relative;
-  grid-template-columns: 42px 230px auto auto minmax(360px, 1fr);
+  grid-template-columns: 42px 230px minmax(360px, 1fr);
   align-items: center;
   gap: 18px;
   max-width: 1380px;
@@ -154,29 +154,14 @@ button {
 .header-brand {
   display: block;
   width: fit-content;
-  color: #ffffff;
   text-decoration: none;
 }
 
 .zolo-logo {
   display: block;
-  width: 206px;
-  height: 70px;
-  fill: currentColor;
-}
-
-.zolo-logo text {
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 27px;
-  font-weight: 800;
-  letter-spacing: 3px;
-}
-
-.header-contact {
-  color: rgba(255, 255, 255, 0.86);
-  font-size: 15px;
-  text-decoration: none;
-  white-space: nowrap;
+  width: 210px;
+  height: 72px;
+  object-fit: contain;
 }
 
 .header-account {
@@ -208,7 +193,7 @@ button {
 }
 
 .user-management-box {
-  padding: 12px;
+  padding: 16px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #ffffff;
@@ -221,6 +206,25 @@ button {
 .user-management-box h3 {
   margin: 0 0 12px;
   font-size: 18px;
+}
+
+.user-box-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.user-box-heading h3 {
+  margin: 0 0 4px;
+}
+
+.user-box-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .user-list-heading {
@@ -311,12 +315,15 @@ button {
 
 .user-create-form {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(180px, 1.2fr) minmax(190px, 1.1fr) minmax(170px, 0.9fr) minmax(130px, 0.7fr);
+  align-items: start;
   gap: 12px;
 }
 
-.user-create-form button {
-  grid-column: 2;
+.user-create-submit {
+  grid-column: 1 / -1;
+  justify-self: end;
+  min-width: 220px;
 }
 
 .user-create-form small {
@@ -333,7 +340,7 @@ button {
 
 .user-table {
   width: 100%;
-  min-width: 760px;
+  min-width: 700px;
   border-collapse: collapse;
   background: #ffffff;
 }
@@ -372,12 +379,26 @@ button {
   padding: 0 12px;
 }
 
-.user-table .user-active-toggle {
-  width: fit-content;
-  padding: 5px 9px;
-  border-radius: 8px;
-  background: rgba(23, 107, 93, 0.1);
-  color: var(--accent-strong);
+.user-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.user-delete-btn {
+  min-height: 34px;
+  padding: 0 12px;
+  border-color: rgba(180, 35, 24, 0.24);
+  color: var(--danger);
+}
+
+.user-delete-btn:hover {
+  background: rgba(180, 35, 24, 0.08);
+}
+
+.user-delete-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .user-list {
@@ -414,18 +435,6 @@ button {
 .user-empty {
   color: var(--muted);
   font-size: 13px;
-}
-
-.user-active-toggle {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 13px;
-}
-
-.user-active-toggle input {
-  width: 16px;
-  min-height: 16px;
 }
 
 .eyebrow {
@@ -1767,10 +1776,6 @@ label {
     grid-template-columns: 42px 230px minmax(240px, 1fr);
   }
 
-  .header-contact {
-    display: none;
-  }
-
   .cabinet-grid {
     grid-template-columns: 1fr 1fr;
   }
@@ -1778,6 +1783,10 @@ label {
   .user-create-form,
   .user-row {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .user-create-submit {
+    justify-self: stretch;
   }
 
   .registry-toolbar,
@@ -2004,11 +2013,7 @@ label {
   }
 
   .user-table td:nth-child(4)::before {
-    content: "Статус";
-  }
-
-  .user-table td:nth-child(5)::before {
-    content: "Действие";
+    content: "Действия";
   }
 
   .project-table td:last-child,
@@ -2027,7 +2032,9 @@ label {
   }
 
   .table-open-button,
-  .user-table .user-save-btn {
+  .user-actions,
+  .user-table .user-save-btn,
+  .user-table .user-delete-btn {
     width: 100%;
   }
 
