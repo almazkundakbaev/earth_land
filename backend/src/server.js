@@ -3,6 +3,7 @@ const cors = require("cors");
 const { config } = require("./config");
 const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/users");
+const roleRoutes = require("./routes/roles");
 const projectRoutes = require("./routes/projects");
 const fileRoutes = require("./routes/files");
 const { query } = require("./db");
@@ -32,6 +33,7 @@ app.get("/api/health/db", async (_req, res, next) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/roles", roleRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api", fileRoutes);
 

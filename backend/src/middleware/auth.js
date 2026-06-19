@@ -13,7 +13,7 @@ async function requireAuth(req, res, next) {
   try {
     const payload = jwt.verify(token, config.jwtSecret);
     const { rows } = await query(
-      "select id, email, full_name, role, is_active from app_users where id = $1",
+      "select id, email, full_name, profile_description, role, user_role_id, is_active from app_users where id = $1",
       [payload.sub],
     );
     const user = rows[0];

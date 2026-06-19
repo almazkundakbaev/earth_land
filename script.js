@@ -1,5 +1,11 @@
 const STORAGE_KEY = "landProjects.v1";
+const TRASH_STORAGE_KEY = "landProjects.trash.v1";
 const API_TOKEN_KEY = "landProjects.apiToken";
+const PROFILE_PHOTO_KEY = "landProjects.profilePhoto";
+const PROFILE_DESCRIPTION_KEY = "landProjects.profileDescription";
+const USER_PASSWORDS_KEY = "landProjects.userPasswords";
+const CUSTOM_ROLES_KEY = "landProjects.customRoles";
+const USER_ROLE_ASSIGNMENTS_KEY = "landProjects.userRoleAssignments";
 
 const apiConfig = window.API_CONFIG || {};
 const apiBaseUrl = (apiConfig.baseUrl || "").replace(/\/$/, "");
@@ -7,15 +13,24 @@ const isApiConfigured = Boolean(apiBaseUrl);
 
 const state = {
   projects: [],
+  trashProjects: [],
   activeId: null,
   selectedIds: new Set(),
   deleteMode: false,
-  view: "cabinet",
+  view: "registry",
+  sidebarCollapsed: false,
   user: null,
   profile: null,
   serverMode: false,
   users: [],
+  customRoles: loadCustomRoles(),
+  userRoleAssignments: loadUserRoleAssignments(),
+  userPasswords: loadUserPasswords(),
+  editingUserId: null,
+  editingRoleId: null,
   apiToken: localStorage.getItem(API_TOKEN_KEY) || "",
+  profilePhoto: localStorage.getItem(PROFILE_PHOTO_KEY) || "",
+  profileDescriptionTimer: null,
   saveTimer: null,
   map: {
     centerLat: 43.2389,
@@ -38,32 +53,63 @@ const elements = {
   authTitle: document.querySelector("#authTitle"),
   serverStatus: document.querySelector("#serverStatus"),
   headerMenuBtn: document.querySelector("#headerMenuBtn"),
+  headerMenuCloseBtn: document.querySelector("#headerMenuCloseBtn"),
+  headerMenuBackdrop: document.querySelector("#headerMenuBackdrop"),
   headerMenu: document.querySelector("#headerMenu"),
-  headerUserName: document.querySelector("#headerUserName"),
-  headerUserLogin: document.querySelector("#headerUserLogin"),
-  headerUserRole: document.querySelector("#headerUserRole"),
+  menuAccountBtn: document.querySelector("#menuAccountBtn"),
+  menuProjectsBtn: document.querySelector("#menuProjectsBtn"),
+  menuUsersBtn: document.querySelector("#menuUsersBtn"),
+  menuRolesBtn: document.querySelector("#menuRolesBtn"),
+  menuTrashBtn: document.querySelector("#menuTrashBtn"),
+  globalSearchInput: document.querySelector("#globalSearchInput"),
+  headerProfileBtn: document.querySelector("#headerProfileBtn"),
+  headerProfileInitials: document.querySelector("#headerProfileInitials"),
   signOutBtn: document.querySelector("#signOutBtn"),
   cabinetPanel: document.querySelector("#cabinetPanel"),
   cabinetTitle: document.querySelector("#cabinetTitle"),
   cabinetRole: document.querySelector("#cabinetRole"),
   cabinetUserEmail: document.querySelector("#cabinetUserEmail"),
   cabinetUserName: document.querySelector("#cabinetUserName"),
-  cabinetProjects: document.querySelector("#cabinetProjects"),
-  cabinetUsers: document.querySelector("#cabinetUsers"),
-  cabinetUsersCard: document.querySelector("#cabinetUsersCard"),
-  goProjectsBtn: document.querySelector("#goProjectsBtn"),
-  goUsersBtn: document.querySelector("#goUsersBtn"),
-  backToCabinetFromProjectsBtn: document.querySelector("#backToCabinetFromProjectsBtn"),
-  backToCabinetFromUsersBtn: document.querySelector("#backToCabinetFromUsersBtn"),
+  accountAvatarInitials: document.querySelector("#accountAvatarInitials"),
+  profilePhotoInput: document.querySelector("#profilePhotoInput"),
+  profileDescriptionInput: document.querySelector("#profileDescriptionInput"),
+  accountEmailValue: document.querySelector("#accountEmailValue"),
+  accountIdValue: document.querySelector("#accountIdValue"),
+  accountSessionValue: document.querySelector("#accountSessionValue"),
+  profileProjectList: document.querySelector("#profileProjectList"),
   userAdminPanel: document.querySelector("#userAdminPanel"),
-  createUserForm: document.querySelector("#createUserForm"),
-  newUserFullName: document.querySelector("#newUserFullName"),
-  newUserEmail: document.querySelector("#newUserEmail"),
-  newUserPassword: document.querySelector("#newUserPassword"),
-  newUserRole: document.querySelector("#newUserRole"),
+  rolesAdminPanel: document.querySelector("#rolesAdminPanel"),
+  openCreateUserModalBtn: document.querySelector("#openCreateUserModalBtn"),
   userSearchInput: document.querySelector("#userSearchInput"),
   userList: document.querySelector("#userList"),
+  roleSearchInput: document.querySelector("#roleSearchInput"),
+  roleList: document.querySelector("#roleList"),
+  openCreateRoleModalBtn: document.querySelector("#openCreateRoleModalBtn"),
+  userModal: document.querySelector("#userModal"),
+  userModalForm: document.querySelector("#userModalForm"),
+  userModalEyebrow: document.querySelector("#userModalEyebrow"),
+  userModalTitle: document.querySelector("#userModalTitle"),
+  userModalFullName: document.querySelector("#userModalFullName"),
+  userModalEmail: document.querySelector("#userModalEmail"),
+  userModalPassword: document.querySelector("#userModalPassword"),
+  userPasswordRevealBtn: document.querySelector("#userPasswordRevealBtn"),
+  userModalPasswordNote: document.querySelector("#userModalPasswordNote"),
+  userModalAccess: document.querySelector("#userModalAccess"),
+  userModalCustomRole: document.querySelector("#userModalCustomRole"),
+  saveUserModalBtn: document.querySelector("#saveUserModalBtn"),
+  closeUserModalBtn: document.querySelector("#closeUserModalBtn"),
+  userProfileSummary: document.querySelector("#userProfileSummary"),
+  roleModal: document.querySelector("#roleModal"),
+  roleModalForm: document.querySelector("#roleModalForm"),
+  roleModalTitle: document.querySelector("#roleModalTitle"),
+  roleModalName: document.querySelector("#roleModalName"),
+  roleModalDescription: document.querySelector("#roleModalDescription"),
+  saveRoleModalBtn: document.querySelector("#saveRoleModalBtn"),
+  closeRoleModalBtn: document.querySelector("#closeRoleModalBtn"),
   registryView: document.querySelector("#registryView"),
+  trashView: document.querySelector("#trashView"),
+  trashTableBody: document.querySelector("#trashTableBody"),
+  clearTrashBtn: document.querySelector("#clearTrashBtn"),
   detailView: document.querySelector("#detailView"),
   tableBody: document.querySelector("#projectTableBody"),
   form: document.querySelector("#projectForm"),
@@ -82,6 +128,11 @@ const elements = {
   paramModalNote: document.querySelector("#paramModalNote"),
   paramModalBody: document.querySelector("#paramModalBody"),
   closeParamModalBtn: document.querySelector("#closeParamModalBtn"),
+  filePreviewModal: document.querySelector("#filePreviewModal"),
+  filePreviewType: document.querySelector("#filePreviewType"),
+  filePreviewTitle: document.querySelector("#filePreviewTitle"),
+  filePreviewBody: document.querySelector("#filePreviewBody"),
+  closeFilePreviewBtn: document.querySelector("#closeFilePreviewBtn"),
   mapModalTemplate: document.querySelector("#mapModalTemplate"),
   imagesModalTemplate: document.querySelector("#imagesModalTemplate"),
   documentsModalTemplate: document.querySelector("#documentsModalTemplate"),
@@ -267,6 +318,7 @@ async function init() {
 
   await loadCurrentUserProfile();
   if (state.profile?.role === "admin") {
+    await loadRoles();
     await loadUsers();
   }
 
@@ -281,43 +333,101 @@ function bindEvents() {
     await signIn();
   });
 
-  elements.createUserForm?.addEventListener("submit", async (event) => {
+  elements.userModalForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    await createUserFromAdmin();
+    await saveUserFromModal();
+  });
+  elements.roleModalForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await saveRoleFromModal();
+  });
+  elements.openCreateUserModalBtn?.addEventListener("click", () => openUserModal());
+  elements.closeUserModalBtn?.addEventListener("click", closeUserModal);
+  elements.openCreateRoleModalBtn?.addEventListener("click", () => openRoleModal());
+  elements.closeRoleModalBtn?.addEventListener("click", closeRoleModal);
+  elements.closeFilePreviewBtn?.addEventListener("click", closeFilePreview);
+  elements.filePreviewModal?.addEventListener("click", (event) => {
+    if (event.target === elements.filePreviewModal) {
+      closeFilePreview();
+    }
+  });
+  elements.userModal?.addEventListener("click", (event) => {
+    if (event.target === elements.userModal) {
+      closeUserModal();
+    }
+  });
+  elements.roleModal?.addEventListener("click", (event) => {
+    if (event.target === elements.roleModal) {
+      closeRoleModal();
+    }
   });
 
-  elements.goProjectsBtn?.addEventListener("click", () => {
-    state.view = "registry";
-    render();
+  elements.userSearchInput?.addEventListener("input", renderUsers);
+  elements.roleSearchInput?.addEventListener("input", renderRoles);
+  elements.headerMenuBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleSidebar();
   });
-  elements.goUsersBtn?.addEventListener("click", () => {
+  elements.headerMenuCloseBtn?.addEventListener("click", () => setSideMenuOpen(false));
+  elements.headerMenuBackdrop?.addEventListener("click", () => setSideMenuOpen(false));
+  elements.menuAccountBtn?.addEventListener("click", () => navigateToView("cabinet"));
+  elements.menuProjectsBtn?.addEventListener("click", () => navigateToView("registry"));
+  elements.menuUsersBtn?.addEventListener("click", () => {
     if (state.profile?.role !== "admin") {
       return;
     }
-    state.view = "users";
-    render();
+    navigateToView("users");
   });
-  elements.backToCabinetFromProjectsBtn?.addEventListener("click", () => {
-    state.view = "cabinet";
-    state.deleteMode = false;
-    state.selectedIds.clear();
-    render();
+  elements.menuRolesBtn?.addEventListener("click", () => {
+    if (state.profile?.role !== "admin") {
+      return;
+    }
+    navigateToView("roles");
   });
-  elements.backToCabinetFromUsersBtn?.addEventListener("click", () => {
-    state.view = "cabinet";
-    render();
+  elements.menuTrashBtn?.addEventListener("click", () => {
+    navigateToView("trash");
   });
-  elements.userSearchInput?.addEventListener("input", renderUsers);
-  elements.headerMenuBtn?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    elements.headerMenu.hidden = !elements.headerMenu.hidden;
+  elements.clearTrashBtn?.addEventListener("click", clearTrash);
+  elements.headerProfileBtn?.addEventListener("click", () => navigateToView("cabinet"));
+  elements.profilePhotoInput?.addEventListener("change", handleProfilePhotoUpload);
+  elements.profileDescriptionInput?.addEventListener("input", () => {
+    const value = elements.profileDescriptionInput.value;
+    localStorage.setItem(PROFILE_DESCRIPTION_KEY, value);
+    if (!state.serverMode) {
+      return;
+    }
+    window.clearTimeout(state.profileDescriptionTimer);
+    state.profileDescriptionTimer = window.setTimeout(async () => {
+      try {
+        const data = await apiRequest("/auth/me", {
+          method: "PATCH",
+          body: { profileDescription: value },
+        });
+        state.user = data.user;
+        state.profile = data.user;
+      } catch (error) {
+        console.error(error);
+      }
+    }, 600);
+  });
+  elements.userPasswordRevealBtn?.addEventListener("pointerdown", () => setUserPasswordVisible(true));
+  elements.userPasswordRevealBtn?.addEventListener("pointerup", () => setUserPasswordVisible(false));
+  elements.userPasswordRevealBtn?.addEventListener("pointerleave", () => setUserPasswordVisible(false));
+  elements.userPasswordRevealBtn?.addEventListener("blur", () => setUserPasswordVisible(false));
+  elements.globalSearchInput?.addEventListener("input", handleGlobalSearch);
+  elements.globalSearchInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      navigateToView("registry");
+      handleGlobalSearch();
+    }
   });
   document.addEventListener("click", (event) => {
-    if (!elements.headerMenu || elements.headerMenu.hidden) {
+    if (!elements.headerMenu?.classList.contains("is-open")) {
       return;
     }
     if (!elements.headerMenu.contains(event.target) && !elements.headerMenuBtn?.contains(event.target)) {
-      elements.headerMenu.hidden = true;
+      setSideMenuOpen(false);
     }
   });
   document.addEventListener("click", (event) => {
@@ -329,7 +439,10 @@ function bindEvents() {
     }
   });
 
-  elements.signOutBtn?.addEventListener("click", signOut);
+  elements.signOutBtn?.addEventListener("click", () => {
+    setSideMenuOpen(false);
+    signOut();
+  });
 
   elements.newProjectBtn.addEventListener("click", () => {
     const project = createProject();
@@ -423,7 +536,7 @@ async function signIn() {
 
   if (login === "123" && password === "123") {
     activateTestAdmin();
-    state.view = "cabinet";
+    state.view = "registry";
     await loadInitialProjects();
     updateAuthState();
     render();
@@ -449,7 +562,8 @@ async function signIn() {
     state.user = data.user;
     state.profile = data.user;
     state.serverMode = true;
-    state.view = "cabinet";
+    state.view = "registry";
+    await loadRoles();
     await loadUsers();
     await loadInitialProjects();
     updateAuthState();
@@ -485,7 +599,7 @@ async function signOut() {
   state.profile = null;
   state.serverMode = false;
   state.users = [];
-  state.view = "cabinet";
+  state.view = "registry";
   localStorage.removeItem(API_TOKEN_KEY);
   await loadInitialProjects();
   updateAuthState();
@@ -530,6 +644,7 @@ async function registerUser() {
     state.profile = data.user;
     state.serverMode = true;
     state.users = [];
+    state.view = "registry";
     elements.registerForm.reset();
     await loadInitialProjects();
     updateAuthState();
@@ -563,7 +678,9 @@ async function loadCurrentUserProfile() {
 
 async function loadUsers() {
   if (!isApiConfigured || state.profile?.role !== "admin") {
-    state.users = [];
+    if (!state.user || state.serverMode) {
+      state.users = [];
+    }
     return;
   }
 
@@ -576,38 +693,107 @@ async function loadUsers() {
   }
 }
 
-async function createUserFromAdmin() {
-  if (state.profile?.role !== "admin") {
-    return;
-  }
-
-  if (!state.serverMode) {
-    state.users.unshift({
-      id: createId(),
-      email: elements.newUserEmail.value.trim(),
-      full_name: elements.newUserFullName.value.trim(),
-      role: elements.newUserRole.value,
-      is_active: true,
-    });
-    elements.createUserForm.reset();
-    renderUsers();
+async function loadRoles() {
+  if (!isApiConfigured || state.profile?.role !== "admin") {
     return;
   }
 
   try {
-    await apiRequest("/users", {
-      method: "POST",
-      body: {
-        fullName: elements.newUserFullName.value.trim(),
-        email: elements.newUserEmail.value.trim(),
-        password: elements.newUserPassword.value,
-        role: elements.newUserRole.value,
-      },
-    });
+    const data = await apiRequest("/roles");
+    state.customRoles = (data.roles || []).map((role) => ({
+      id: role.id,
+      name: role.name,
+      description: role.description || "",
+      createdAt: role.created_at,
+      updatedAt: role.updated_at,
+    }));
+  } catch (error) {
+    console.error(error);
+  }
+}
 
-    elements.createUserForm.reset();
+async function saveUserFromModal() {
+  if (state.profile?.role !== "admin") {
+    return;
+  }
+
+  const isEdit = Boolean(state.editingUserId);
+  const fullName = elements.userModalFullName.value.trim();
+  const email = elements.userModalEmail.value.trim();
+  const password = elements.userModalPassword.value;
+  const access = elements.userModalAccess.value;
+  const customRoleId = elements.userModalCustomRole.value;
+
+  if (!isEdit && password.length < 8) {
+    alert("Пароль должен быть минимум 8 символов.");
+    return;
+  }
+
+  if (!state.serverMode) {
+    if (isEdit) {
+      const user = state.users.find((item) => item.id === state.editingUserId);
+      if (user) {
+        user.email = email;
+        user.full_name = fullName;
+        user.role = access;
+        user.user_role_id = customRoleId || null;
+        user.updated_at = new Date().toISOString();
+      }
+    } else {
+      const user = {
+        id: createId(),
+        email,
+        full_name: fullName,
+        role: access,
+        user_role_id: customRoleId || null,
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      state.users.unshift(user);
+      state.editingUserId = user.id;
+    }
+    if (password) {
+      saveUserPassword(state.editingUserId, password);
+    }
+    assignCustomRole(state.editingUserId, customRoleId);
+    closeUserModal();
+    renderUsers();
+    renderRoles();
+    return;
+  }
+
+  try {
+    if (isEdit) {
+      const updates = {
+        fullName,
+        role: access,
+        userRoleId: customRoleId || null,
+      };
+      if (password) {
+        updates.password = password;
+      }
+      await apiRequest(`/users/${state.editingUserId}`, {
+        method: "PATCH",
+        body: updates,
+      });
+    } else {
+      const data = await apiRequest("/users", {
+        method: "POST",
+        body: {
+          fullName,
+          email,
+          password,
+          role: access,
+          userRoleId: customRoleId || null,
+        },
+      });
+    }
+
+    closeUserModal();
     await loadUsers();
     renderUsers();
+    renderRoles();
   } catch (error) {
     alert(error.message);
   }
@@ -629,6 +815,7 @@ async function updateUserFromAdmin(userId, updates) {
       }
     }
     renderUsers();
+    renderRoles();
     return;
   }
 
@@ -639,6 +826,7 @@ async function updateUserFromAdmin(userId, updates) {
     });
     await loadUsers();
     renderUsers();
+    renderRoles();
   } catch (error) {
     alert(error.message);
   }
@@ -663,17 +851,234 @@ async function deleteUserFromAdmin(userId) {
 
   if (!state.serverMode) {
     state.users = state.users.filter((item) => item.id !== userId);
+    delete state.userRoleAssignments[userId];
+    delete state.userPasswords[userId];
+    saveUserRoleAssignments();
+    saveUserPasswords();
     renderUsers();
+    renderRoles();
     return;
   }
 
   try {
     await apiRequest(`/users/${userId}`, { method: "DELETE" });
+    delete state.userRoleAssignments[userId];
+    delete state.userPasswords[userId];
+    saveUserRoleAssignments();
+    saveUserPasswords();
     await loadUsers();
     renderUsers();
+    renderRoles();
   } catch (error) {
     alert(error.message);
   }
+}
+
+function openUserModal(userId = null) {
+  if (state.profile?.role !== "admin") {
+    return;
+  }
+
+  const user = userId ? state.users.find((item) => item.id === userId) : null;
+  state.editingUserId = user?.id || null;
+  populateCustomRoleSelect(elements.userModalCustomRole, user ? getAssignedCustomRoleId(user.id) : "");
+
+  if (elements.userModalTitle) {
+    elements.userModalTitle.textContent = user ? "Редактировать пользователя" : "Добавить пользователя";
+  }
+  if (elements.userModalEyebrow) {
+    elements.userModalEyebrow.textContent = user ? "Редактирование" : "Новый пользователь";
+  }
+  if (elements.saveUserModalBtn) {
+    elements.saveUserModalBtn.textContent = user ? "Сохранить" : "Добавить";
+  }
+  if (elements.userModalPasswordNote) {
+    elements.userModalPasswordNote.textContent = user ? "Оставьте пустым, чтобы не менять пароль" : "Минимум 8 символов";
+  }
+  if (elements.userModalFullName) {
+    elements.userModalFullName.value = user?.full_name || "";
+  }
+  if (elements.userModalEmail) {
+    elements.userModalEmail.value = user?.email || "";
+    elements.userModalEmail.disabled = Boolean(user && state.serverMode);
+  }
+  if (elements.userModalPassword) {
+    elements.userModalPassword.value = user ? getStoredUserPassword(user.id) : "";
+    elements.userModalPassword.required = !user;
+    elements.userModalPassword.type = "password";
+  }
+  if (elements.userModalAccess) {
+    elements.userModalAccess.value = user?.role || "user";
+  }
+  if (elements.userProfileSummary) {
+    elements.userProfileSummary.hidden = true;
+    elements.userProfileSummary.innerHTML = "";
+  }
+  if (elements.userModal) {
+    elements.userModal.hidden = false;
+  }
+}
+
+function openUserProfile(userId) {
+  if (state.profile?.role !== "admin") {
+    return;
+  }
+
+  const user = state.users.find((item) => item.id === userId);
+  if (!user) {
+    return;
+  }
+
+  openUserModal(userId);
+  const assignedRole = getAssignedCustomRole(user.id);
+  const accessLabel = user.role === "admin" ? "Администратор" : "Пользователь";
+  const storedPassword = getStoredUserPassword(user.id);
+  const assignedProjects = getProjectsForUser(user);
+  const assignedProjectText = assignedProjects.length > 0
+    ? assignedProjects.map((project) => `${project.title || "Без названия"} (${formatDate(project.createdAt)})`).join(", ")
+    : "Не назначены";
+
+  if (elements.userModalTitle) {
+    elements.userModalTitle.textContent = "Профиль пользователя";
+  }
+  if (elements.userModalEyebrow) {
+    elements.userModalEyebrow.textContent = "Просмотр";
+  }
+  if (elements.userProfileSummary) {
+    elements.userProfileSummary.hidden = false;
+    elements.userProfileSummary.innerHTML = `
+      <div><span>ID</span><strong>${escapeHtml(user.id || "-")}</strong></div>
+      <div><span>ФИО</span><strong>${escapeHtml(user.full_name || "Не указано")}</strong></div>
+      <div><span>Email</span><strong>${escapeHtml(user.email || "Без email")}</strong></div>
+      <div><span>Доступ</span><strong>${escapeHtml(accessLabel)}</strong></div>
+      <div><span>Роль</span><strong>${escapeHtml(assignedRole?.name || "Не назначена")}</strong></div>
+      <div><span>Проекты</span><strong>${escapeHtml(assignedProjectText)}</strong></div>
+      <div>
+        <span>Пароль</span>
+        <strong class="masked-password" data-password-value="${escapeHtml(storedPassword)}">
+          <span class="masked-password-value">${storedPassword ? "••••••••" : "Не сохранён"}</span>
+          ${storedPassword ? `<button class="inline-eye-button" type="button" aria-label="Показать пароль">◉</button>` : ""}
+        </strong>
+      </div>
+      <div><span>Статус</span><strong>${user.is_active === false ? "Отключен" : "Активен"}</strong></div>
+    `;
+    const eyeButton = elements.userProfileSummary.querySelector(".inline-eye-button");
+    const passwordNode = elements.userProfileSummary.querySelector(".masked-password");
+    const passwordValue = elements.userProfileSummary.querySelector(".masked-password-value");
+    if (eyeButton && passwordNode && passwordValue) {
+      const show = () => {
+        passwordValue.textContent = passwordNode.dataset.passwordValue;
+      };
+      const hide = () => {
+        passwordValue.textContent = "••••••••";
+      };
+      eyeButton.addEventListener("pointerdown", show);
+      eyeButton.addEventListener("pointerup", hide);
+      eyeButton.addEventListener("pointerleave", hide);
+      eyeButton.addEventListener("blur", hide);
+    }
+  }
+}
+
+function closeUserModal() {
+  state.editingUserId = null;
+  elements.userModalForm?.reset();
+  if (elements.userModalEmail) {
+    elements.userModalEmail.disabled = false;
+  }
+  if (elements.userProfileSummary) {
+    elements.userProfileSummary.hidden = true;
+    elements.userProfileSummary.innerHTML = "";
+  }
+  if (elements.userModal) {
+    elements.userModal.hidden = true;
+  }
+}
+
+function openRoleModal(roleId = null) {
+  const role = roleId ? state.customRoles.find((item) => item.id === roleId) : null;
+  state.editingRoleId = role?.id || null;
+  if (elements.roleModalTitle) {
+    elements.roleModalTitle.textContent = role ? "Редактировать роль" : "Добавить роль";
+  }
+  if (elements.saveRoleModalBtn) {
+    elements.saveRoleModalBtn.textContent = role ? "Сохранить" : "Добавить";
+  }
+  if (elements.roleModalName) {
+    elements.roleModalName.value = role?.name || "";
+  }
+  if (elements.roleModalDescription) {
+    elements.roleModalDescription.value = role?.description || "";
+  }
+  if (elements.roleModal) {
+    elements.roleModal.hidden = false;
+  }
+}
+
+function closeRoleModal() {
+  state.editingRoleId = null;
+  elements.roleModalForm?.reset();
+  if (elements.roleModal) {
+    elements.roleModal.hidden = true;
+  }
+}
+
+async function saveRoleFromModal() {
+  if (state.profile?.role !== "admin") {
+    return;
+  }
+
+  const name = elements.roleModalName.value.trim();
+  const description = elements.roleModalDescription.value.trim();
+  if (!name) {
+    return;
+  }
+
+  if (state.serverMode) {
+    try {
+      if (state.editingRoleId) {
+        await apiRequest(`/roles/${state.editingRoleId}`, {
+          method: "PATCH",
+          body: { name, description },
+        });
+      } else {
+        await apiRequest("/roles", {
+          method: "POST",
+          body: { name, description },
+        });
+      }
+
+      closeRoleModal();
+      await loadRoles();
+      await loadUsers();
+      renderRoles();
+      renderUsers();
+    } catch (error) {
+      alert(error.message);
+    }
+    return;
+  }
+
+  if (state.editingRoleId) {
+    const role = state.customRoles.find((item) => item.id === state.editingRoleId);
+    if (role) {
+      role.name = name;
+      role.description = description;
+      role.updatedAt = new Date().toISOString();
+    }
+  } else {
+    state.customRoles.unshift({
+      id: createId(),
+      name,
+      description,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  saveCustomRoles();
+  closeRoleModal();
+  renderRoles();
 }
 
 function canDeleteProjects() {
@@ -697,14 +1102,14 @@ function updateAuthState() {
   if (state.user) {
     if (elements.serverStatus) {
       const role = state.profile?.role === "admin" ? "admin" : "user";
-      elements.serverStatus.textContent = `Серверный режим: вход выполнен как ${state.user.email}. Роль: ${role}.`;
+      elements.serverStatus.textContent = `Серверный режим: вход выполнен как ${state.user.email}. Доступ: ${role}.`;
     }
     if (elements.signOutBtn) {
       elements.signOutBtn.hidden = false;
     }
     if (elements.appServerStatus) {
       const role = state.profile?.role === "admin" ? "admin" : "user";
-      elements.appServerStatus.textContent = `Вход выполнен: ${state.user.email}. Роль: ${role}.`;
+      elements.appServerStatus.textContent = `Вход выполнен: ${state.user.email}. Доступ: ${role}.`;
     }
     if (elements.authEmail) {
       elements.authEmail.value = state.user.email || "";
@@ -724,28 +1129,43 @@ function updateAuthState() {
 }
 
 function updateHeaderAccount() {
-  if (!elements.headerUserName || !elements.headerUserLogin || !elements.headerUserRole) {
+  if (!elements.headerProfileInitials) {
     return;
   }
 
   if (!state.user) {
-    elements.headerUserName.textContent = "-";
-    elements.headerUserLogin.textContent = "Логин: -";
-    elements.headerUserRole.textContent = "Роль: -";
+    elements.headerProfileInitials.textContent = "U";
+    renderAvatarElement(elements.headerProfileInitials, "U");
     return;
   }
 
-  const role = state.profile?.role === "admin" ? "admin" : "user";
   const name = state.user.full_name || state.user.fullName || state.user.email || "Пользователь";
-  const login = state.user.email || "без email";
 
-  elements.headerUserName.textContent = name;
-  elements.headerUserLogin.textContent = `Логин: ${login}`;
-  elements.headerUserRole.textContent = `Роль: ${role}`;
+  renderAvatarElement(elements.headerProfileInitials, getUserInitials(name));
+}
+
+function handleGlobalSearch() {
+  const query = elements.globalSearchInput?.value || "";
+
+  if (elements.search) {
+    elements.search.value = query;
+  }
+  if (elements.userSearchInput) {
+    elements.userSearchInput.value = query;
+  }
+  if (elements.roleSearchInput) {
+    elements.roleSearchInput.value = query;
+  }
+
+  renderProjectTable();
+  renderTrashTable();
+  renderUsers();
+  renderRoles();
 }
 
 async function loadInitialProjects() {
   state.projects = state.serverMode ? await loadServerProjects() : loadLocalProjects();
+  state.trashProjects = state.serverMode ? await loadServerTrashProjects() : loadLocalTrashProjects();
   state.activeId = state.projects[0]?.id || null;
 }
 
@@ -768,6 +1188,16 @@ async function loadServerProjects() {
   }
 }
 
+async function loadServerTrashProjects() {
+  try {
+    const data = await apiRequest("/projects/trash/list");
+    return (data.projects || []).map((project) => fromApiProject(project, []));
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
+}
+
 function render() {
   const isAuthenticated = Boolean(state.user);
 
@@ -784,8 +1214,8 @@ function render() {
 
   updateHeaderAccount();
 
-  if (state.view === "users" && state.profile?.role !== "admin") {
-    state.view = "cabinet";
+  if ((state.view === "users" || state.view === "roles") && state.profile?.role !== "admin") {
+    state.view = "registry";
   }
 
   if (elements.cabinetPanel) {
@@ -794,15 +1224,98 @@ function render() {
   if (elements.userAdminPanel) {
     elements.userAdminPanel.hidden = state.view !== "users" || state.profile?.role !== "admin";
   }
+  if (elements.rolesAdminPanel) {
+    elements.rolesAdminPanel.hidden = state.view !== "roles" || state.profile?.role !== "admin";
+  }
+  if (elements.trashView) {
+    elements.trashView.hidden = state.view !== "trash";
+  }
+  if (elements.clearTrashBtn) {
+    elements.clearTrashBtn.hidden = !canDeleteProjects();
+    elements.clearTrashBtn.disabled = state.trashProjects.length === 0;
+  }
   elements.registryView.hidden = state.view !== "registry";
   elements.detailView.hidden = state.view !== "detail";
   elements.deleteBtn.hidden = !canDeleteProjects();
   renderCabinet();
   renderUsers();
+  renderRoles();
   renderProjectTable();
+  renderTrashTable();
+  updateSideMenuState();
+  updateSidebarLayout();
 
   if (state.view === "detail") {
     renderForm();
+  }
+}
+
+function isMobileSidebar() {
+  return window.matchMedia("(max-width: 900px)").matches;
+}
+
+function toggleSidebar() {
+  if (isMobileSidebar()) {
+    setSideMenuOpen(!elements.headerMenu?.classList.contains("is-open"));
+    return;
+  }
+
+  state.sidebarCollapsed = !state.sidebarCollapsed;
+  setSideMenuOpen(false);
+  updateSidebarLayout();
+}
+
+function setSideMenuOpen(isOpen) {
+  if (elements.headerMenu) {
+    elements.headerMenu.classList.toggle("is-open", isOpen);
+  }
+  if (elements.headerMenuBackdrop) {
+    elements.headerMenuBackdrop.hidden = !isOpen;
+  }
+  if (elements.headerMenuBtn) {
+    elements.headerMenuBtn.setAttribute("aria-expanded", String(isOpen));
+  }
+}
+
+function updateSidebarLayout() {
+  if (elements.appShell) {
+    elements.appShell.classList.toggle("sidebar-collapsed", state.sidebarCollapsed);
+  }
+  if (elements.headerMenuBtn && !isMobileSidebar()) {
+    elements.headerMenuBtn.setAttribute("aria-expanded", String(!state.sidebarCollapsed));
+  }
+}
+
+function navigateToView(view) {
+  closeAdminModals();
+  closeParamModal();
+  state.view = view;
+  state.deleteMode = false;
+  state.selectedIds.clear();
+  setSideMenuOpen(false);
+  render();
+}
+
+function closeAdminModals() {
+  closeUserModal();
+  closeRoleModal();
+}
+
+function updateSideMenuState() {
+  elements.menuAccountBtn?.classList.toggle("is-active", state.view === "cabinet");
+  elements.menuProjectsBtn?.classList.toggle("is-active", state.view === "registry" || state.view === "detail");
+  elements.menuUsersBtn?.classList.toggle("is-active", state.view === "users");
+  elements.menuRolesBtn?.classList.toggle("is-active", state.view === "roles");
+  elements.menuTrashBtn?.classList.toggle("is-active", state.view === "trash");
+
+  if (elements.menuUsersBtn) {
+    elements.menuUsersBtn.hidden = state.profile?.role !== "admin";
+  }
+  if (elements.menuRolesBtn) {
+    elements.menuRolesBtn.hidden = state.profile?.role !== "admin";
+  }
+  if (elements.menuTrashBtn) {
+    elements.menuTrashBtn.hidden = false;
   }
 }
 
@@ -812,14 +1325,14 @@ function renderCabinet() {
   }
 
   const role = state.profile?.role === "admin" ? "admin" : "user";
+  const roleLabel = role === "admin" ? "Администратор" : "Пользователь";
   const displayName = state.user.full_name || state.user.fullName || "";
 
   if (elements.cabinetTitle) {
-    elements.cabinetTitle.textContent = role === "admin" ? "Кабинет администратора" : "Кабинет пользователя";
+    elements.cabinetTitle.textContent = "Профиль";
   }
   if (elements.cabinetRole) {
-    elements.cabinetRole.textContent = role;
-    elements.cabinetRole.classList.toggle("is-admin", role === "admin");
+    elements.cabinetRole.textContent = roleLabel;
   }
   if (elements.cabinetUserEmail) {
     elements.cabinetUserEmail.textContent = state.user.email || "Без email";
@@ -827,18 +1340,144 @@ function renderCabinet() {
   if (elements.cabinetUserName) {
     elements.cabinetUserName.textContent = displayName || "Имя не указано";
   }
-  if (elements.cabinetProjects) {
-    elements.cabinetProjects.textContent = String(state.projects.length);
+  if (elements.accountAvatarInitials) {
+    renderAvatarElement(elements.accountAvatarInitials, getUserInitials(displayName || state.user.email || "U"));
   }
-  if (elements.cabinetUsers) {
-    elements.cabinetUsers.textContent = String(state.users.length);
+  if (elements.accountEmailValue) {
+    elements.accountEmailValue.textContent = state.user.email || "Без email";
   }
-  if (elements.cabinetUsersCard) {
-    elements.cabinetUsersCard.hidden = role !== "admin";
+  if (elements.accountIdValue) {
+    elements.accountIdValue.textContent = state.user.id || "Не указан";
   }
-  if (elements.goUsersBtn) {
-    elements.goUsersBtn.hidden = role !== "admin";
+  if (elements.accountSessionValue) {
+    elements.accountSessionValue.textContent = state.user ? "Активен" : "Не активен";
   }
+  if (elements.profileDescriptionInput) {
+    elements.profileDescriptionInput.value = state.user.profile_description || localStorage.getItem(PROFILE_DESCRIPTION_KEY) || "";
+  }
+  renderProfileProjects();
+}
+
+function handleProfilePhotoUpload(event) {
+  const [file] = event.target.files || [];
+
+  if (!file) {
+    return;
+  }
+
+  if (!file.type.startsWith("image/")) {
+    alert("Выберите изображение для фотографии профиля.");
+    event.target.value = "";
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.addEventListener("load", () => {
+    state.profilePhoto = reader.result;
+    try {
+      localStorage.setItem(PROFILE_PHOTO_KEY, state.profilePhoto);
+    } catch (error) {
+      console.error(error);
+      alert("Не удалось сохранить фото профиля в браузере.");
+    }
+    updateHeaderAccount();
+    renderCabinet();
+  });
+  reader.readAsDataURL(file);
+}
+
+function renderProfileProjects() {
+  if (!elements.profileProjectList || !state.user) {
+    return;
+  }
+
+  const projects = getProjectsForUser(state.user);
+
+  if (projects.length === 0) {
+    elements.profileProjectList.innerHTML = `<p class="profile-empty-text">Проекты не назначены</p>`;
+    return;
+  }
+
+  elements.profileProjectList.innerHTML = projects
+    .map(
+      (project) => `
+        <button class="profile-project-item" type="button" data-project-id="${escapeHtml(project.id)}">
+          <span>${escapeHtml(project.title || "Без названия")}</span>
+          <small>${escapeHtml(project.status || "Без статуса")}</small>
+        </button>
+      `,
+    )
+    .join("");
+
+  elements.profileProjectList.querySelectorAll("[data-project-id]").forEach((button) => {
+    const project = state.projects.find((item) => item.id === button.dataset.projectId);
+    if (project) {
+      const meta = document.createElement("small");
+      meta.textContent = `${formatDate(project.createdAt)} · ${project.projectKey || project.id || "-"}`;
+      button.append(meta);
+    }
+    button.addEventListener("click", () => openProject(button.dataset.projectId));
+  });
+}
+
+function getProjectsForUser(user) {
+  if (!user) {
+    return [];
+  }
+
+  const userNames = [user.full_name, user.email].filter(Boolean);
+  return state.projects.filter((project) => userNames.includes(project.responsible));
+}
+
+function setUserPasswordVisible(isVisible) {
+  if (elements.userModalPassword) {
+    elements.userModalPassword.type = isVisible ? "text" : "password";
+  }
+}
+
+function saveUserPassword(userId, password) {
+  if (!userId || !password) {
+    return;
+  }
+
+  state.userPasswords[userId] = password;
+  saveUserPasswords();
+}
+
+function getStoredUserPassword(userId) {
+  return state.userPasswords[userId] || "";
+}
+
+function renderAvatarElement(element, initials) {
+  if (!element) {
+    return;
+  }
+
+  if (state.profilePhoto) {
+    element.innerHTML = `<img src="${state.profilePhoto}" alt="" />`;
+    element.classList.add("has-photo");
+    return;
+  }
+
+  element.textContent = initials || "U";
+  element.classList.remove("has-photo");
+}
+
+function getUserInitials(value) {
+  const parts = String(value || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (parts.length === 0) {
+    return "U";
+  }
+
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
 }
 
 function renderUsers() {
@@ -848,12 +1487,13 @@ function renderUsers() {
 
   const query = elements.userSearchInput?.value.trim().toLowerCase() || "";
   const users = state.users.filter((user) => {
-    const content = [user.full_name, user.email, user.role].join(" ").toLowerCase();
+    const assignedRole = getAssignedCustomRole(user.id);
+    const content = [user.full_name, user.email, user.role, assignedRole?.name].join(" ").toLowerCase();
     return content.includes(query);
   });
 
   if (users.length === 0) {
-    elements.userList.innerHTML = `<tr><td class="user-empty" colspan="4">Пользователей пока нет</td></tr>`;
+    elements.userList.innerHTML = `<tr><td class="user-empty" colspan="5">Пользователей пока нет</td></tr>`;
     return;
   }
 
@@ -861,6 +1501,8 @@ function renderUsers() {
   users.forEach((user) => {
     const row = document.createElement("tr");
     row.className = "user-row";
+    const assignedRole = getAssignedCustomRole(user.id);
+    const accessLabel = user.role === "admin" ? "Администратор" : "Пользователь";
     row.innerHTML = `
       <td>
         <div class="user-meta">
@@ -869,30 +1511,188 @@ function renderUsers() {
         </div>
       </td>
       <td>${escapeHtml(user.email)}</td>
-      <td>
-        <select class="user-role-select" aria-label="Роль пользователя">
-          <option value="user" ${user.role === "user" ? "selected" : ""}>user</option>
-          <option value="admin" ${user.role === "admin" ? "selected" : ""}>admin</option>
-        </select>
-      </td>
+      <td>${escapeHtml(accessLabel)}</td>
+      <td>${escapeHtml(assignedRole?.name || "Не назначена")}</td>
       <td>
         <div class="user-actions">
-          <button class="secondary-button user-save-btn" type="button">Сохранить</button>
+          <button class="secondary-button user-edit-btn" type="button">Редактировать</button>
           <button class="secondary-button user-delete-btn" type="button" ${user.id === state.user.id ? "disabled" : ""}>Удалить</button>
         </div>
       </td>
     `;
 
-    row.querySelector(".user-save-btn").addEventListener("click", async () => {
-      await updateUserFromAdmin(user.id, {
-        role: row.querySelector(".user-role-select").value,
-      });
+    row.addEventListener("click", () => openUserProfile(user.id));
+    row.querySelector(".user-edit-btn").addEventListener("click", (event) => {
+      event.stopPropagation();
+      openUserModal(user.id);
     });
-    row.querySelector(".user-delete-btn").addEventListener("click", async () => {
+    row.querySelector(".user-delete-btn").addEventListener("click", async (event) => {
+      event.stopPropagation();
       await deleteUserFromAdmin(user.id);
     });
     elements.userList.append(row);
   });
+}
+
+function renderRoles() {
+  if (!elements.roleList || state.profile?.role !== "admin") {
+    return;
+  }
+
+  const query = elements.roleSearchInput?.value.trim().toLowerCase() || "";
+  const roles = state.customRoles.filter((role) => {
+    const content = [role.name, role.description].join(" ").toLowerCase();
+    return content.includes(query);
+  });
+
+  if (roles.length === 0) {
+    elements.roleList.innerHTML = `<tr><td class="user-empty" colspan="3">Ролей пока нет</td></tr>`;
+    return;
+  }
+
+  elements.roleList.innerHTML = "";
+  roles.forEach((role) => {
+    const row = document.createElement("tr");
+    row.className = "user-row";
+    row.innerHTML = `
+      <td>
+        <div class="user-meta">
+          <strong>${escapeHtml(role.name)}</strong>
+          <span>${escapeHtml(role.id)}</span>
+        </div>
+      </td>
+      <td>${escapeHtml(role.description || "Без описания")}</td>
+      <td>
+        <div class="user-actions">
+          <button class="secondary-button role-edit-btn" type="button">Редактировать</button>
+          <button class="secondary-button user-delete-btn" type="button">Удалить</button>
+        </div>
+      </td>
+    `;
+
+    row.querySelector(".role-edit-btn").addEventListener("click", () => openRoleModal(role.id));
+    row.querySelector(".user-delete-btn").addEventListener("click", () => deleteCustomRole(role.id));
+    elements.roleList.append(row);
+  });
+}
+
+function populateCustomRoleSelect(select, selectedId = "") {
+  if (!select) {
+    return;
+  }
+
+  const options = [`<option value="">Не назначена</option>`]
+    .concat(
+      state.customRoles.map(
+        (role) => `<option value="${escapeHtml(role.id)}" ${role.id === selectedId ? "selected" : ""}>${escapeHtml(role.name)}</option>`,
+      ),
+    )
+    .join("");
+
+  select.innerHTML = options;
+}
+
+function assignCustomRole(userId, roleId) {
+  if (!userId) {
+    return;
+  }
+
+  if (roleId) {
+    state.userRoleAssignments[userId] = roleId;
+  } else {
+    delete state.userRoleAssignments[userId];
+  }
+  saveUserRoleAssignments();
+}
+
+function getAssignedCustomRoleId(userId) {
+  const user = state.users.find((item) => item.id === userId);
+  return user?.user_role_id || state.userRoleAssignments[userId] || "";
+}
+
+function getAssignedCustomRole(userId) {
+  const user = state.users.find((item) => item.id === userId);
+  if (user?.custom_role_name) {
+    return {
+      id: user.user_role_id,
+      name: user.custom_role_name,
+      description: user.custom_role_description || "",
+    };
+  }
+  const roleId = getAssignedCustomRoleId(userId);
+  return state.customRoles.find((role) => role.id === roleId) || null;
+}
+
+async function deleteCustomRole(roleId) {
+  if (!confirm("Удалить роль? Назначения этой роли у пользователей будут очищены.")) {
+    return;
+  }
+
+  if (state.serverMode) {
+    try {
+      await apiRequest(`/roles/${roleId}`, { method: "DELETE" });
+      await loadRoles();
+      await loadUsers();
+      renderRoles();
+      renderUsers();
+    } catch (error) {
+      alert(error.message);
+    }
+    return;
+  }
+
+  state.customRoles = state.customRoles.filter((role) => role.id !== roleId);
+  Object.keys(state.userRoleAssignments).forEach((userId) => {
+    if (state.userRoleAssignments[userId] === roleId) {
+      delete state.userRoleAssignments[userId];
+    }
+  });
+  saveCustomRoles();
+  saveUserRoleAssignments();
+  renderRoles();
+  renderUsers();
+}
+
+function saveCustomRoles() {
+  localStorage.setItem(CUSTOM_ROLES_KEY, JSON.stringify(state.customRoles));
+}
+
+function saveUserRoleAssignments() {
+  localStorage.setItem(USER_ROLE_ASSIGNMENTS_KEY, JSON.stringify(state.userRoleAssignments));
+}
+
+function saveUserPasswords() {
+  localStorage.setItem(USER_PASSWORDS_KEY, JSON.stringify(state.userPasswords));
+}
+
+function loadCustomRoles() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(CUSTOM_ROLES_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
+}
+
+function loadUserRoleAssignments() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(USER_ROLE_ASSIGNMENTS_KEY) || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch (error) {
+    console.error(error);
+    return {};
+  }
+}
+
+function loadUserPasswords() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(USER_PASSWORDS_KEY) || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch (error) {
+    console.error(error);
+    return {};
+  }
 }
 
 function renderProjectTable() {
@@ -912,7 +1712,7 @@ function renderProjectTable() {
   }
 
   if (filteredProjects.length === 0) {
-    elements.tableBody.innerHTML = `<tr class="empty-row"><td colspan="8">Проектов пока нет</td></tr>`;
+    elements.tableBody.innerHTML = `<tr class="empty-row"><td colspan="7">Проектов пока нет</td></tr>`;
     return;
   }
 
@@ -930,8 +1730,8 @@ function renderProjectTable() {
       <td>${formatDate(project.createdAt)}</td>
       <td>${escapeHtml(project.responsible || "Не заполнено")}</td>
       <td>${escapeHtml(project.area || "Не заполнено")}</td>
-      <td><button class="secondary-button table-open-button" type="button">Открыть</button></td>
     `;
+    row.addEventListener("click", () => openProject(project.id));
     row.querySelector(".project-select").addEventListener("click", (event) => {
       event.stopPropagation();
 
@@ -942,11 +1742,33 @@ function renderProjectTable() {
       }
       renderProjectTable();
     });
-    row.querySelector(".table-open-button").addEventListener("click", (event) => {
-      event.stopPropagation();
-      openProject(project.id);
-    });
     elements.tableBody.append(row);
+  });
+}
+
+function renderTrashTableLegacy() {
+  if (!elements.trashTableBody) {
+    return;
+  }
+
+  if (state.trashProjects.length === 0) {
+    elements.trashTableBody.innerHTML = `<tr class="empty-row"><td colspan="6">Корзина пуста</td></tr>`;
+    return;
+  }
+
+  elements.trashTableBody.innerHTML = "";
+  state.trashProjects.forEach((project) => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${escapeHtml(project.projectKey || project.id || "-")}</td>
+      <td>${escapeHtml(project.title || "Без названия")}</td>
+      <td>${formatDate(project.createdAt)}</td>
+      <td>${formatDate(project.deletedAt)}</td>
+      <td>${escapeHtml(project.responsible || "Не назначен")}</td>
+      <td><button class="secondary-button restore-project-btn" type="button">Восстановить</button></td>
+    `;
+    row.querySelector(".restore-project-btn").addEventListener("click", () => restoreProject(project.id));
+    elements.trashTableBody.append(row);
   });
 }
 
@@ -960,6 +1782,7 @@ function openProject(projectId) {
 function renderForm() {
   const project = getActiveProject();
 
+  renderResponsibleOptions(project);
   fields.forEach((field) => {
     const input = document.querySelector(`#${field}`);
     input.value = project[field] || "";
@@ -967,6 +1790,29 @@ function renderForm() {
   elements.statusPickerText.textContent = project.status || "Выбрать статус";
 
   renderSections(project);
+}
+
+function renderResponsibleOptions(project) {
+  const select = document.querySelector("#responsible");
+  if (!select) {
+    return;
+  }
+
+  const currentValue = project?.responsible || "";
+  const options = [`<option value="">Не назначен</option>`];
+  state.users.forEach((user) => {
+    const name = user.full_name || user.email || "Пользователь";
+    const assignedRole = getAssignedCustomRole(user.id);
+    const accessLabel = user.role === "admin" ? "Администратор" : "Пользователь";
+    const roleText = assignedRole?.name ? `${assignedRole.name}, ${accessLabel}` : accessLabel;
+    options.push(`<option value="${escapeHtml(name)}">${escapeHtml(name)} — ${escapeHtml(roleText)}</option>`);
+  });
+
+  if (currentValue && !state.users.some((user) => (user.full_name || user.email) === currentValue)) {
+    options.push(`<option value="${escapeHtml(currentValue)}">${escapeHtml(currentValue)}</option>`);
+  }
+
+  select.innerHTML = options.join("");
 }
 
 function renderSections(project) {
@@ -1334,11 +2180,11 @@ function getInlineFileCountText(files, type) {
 }
 
 function renderMediaPreview(file) {
-  const fileUrl = getFileUrl(file);
+  const fileUrl = getFileViewUrl(file);
   const isImage = file.type?.startsWith("image/");
 
   return `
-    <a class="inline-media-preview" href="${fileUrl}" target="_blank" rel="noreferrer" download="${escapeHtml(file.name)}">
+    <a class="inline-media-preview" href="${fileUrl}" target="_blank" rel="noreferrer">
       <span class="inline-media-thumb">
         ${isImage ? `<img src="${fileUrl}" alt="${escapeHtml(file.name)}" />` : `<span>${escapeHtml(getFileKindLabel(file))}</span>`}
       </span>
@@ -1348,8 +2194,8 @@ function renderMediaPreview(file) {
 }
 
 function renderDocumentPreview(file) {
-  const fileUrl = getFileUrl(file);
-  const canPreview = file.type?.startsWith("image/") || file.type === "application/pdf";
+  const fileUrl = getFileViewUrl(file);
+  const canPreview = canPreviewInline(file);
 
   return `
     <div class="document-preview">
@@ -1360,7 +2206,7 @@ function renderDocumentPreview(file) {
             : `<a href="${fileUrl}" target="_blank" rel="noreferrer">Открыть документ</a>`
         }
       </div>
-      <a class="document-preview-name" href="${fileUrl}" target="_blank" rel="noreferrer" download="${escapeHtml(file.name)}">${escapeHtml(getFileKindLabel(file))}: ${escapeHtml(file.name)}</a>
+      <a class="document-preview-name" href="${fileUrl}" target="_blank" rel="noreferrer">${escapeHtml(getFileKindLabel(file))}: ${escapeHtml(file.name)}</a>
     </div>
   `;
 }
@@ -1469,6 +2315,7 @@ function openMapModal(item) {
 
 function openImagesModal(item) {
   state.currentFileItem = item;
+  elements.paramModal.classList.add("file-modal");
   elements.paramModalEyebrow.textContent = "Визуальные материалы";
   elements.paramModalTitle.textContent = item.label;
   elements.paramModalNote.textContent = item.note || "";
@@ -1484,6 +2331,7 @@ function openImagesModal(item) {
 
 function openDocumentsModal(item) {
   state.currentFileItem = item;
+  elements.paramModal.classList.add("file-modal");
   elements.paramModalEyebrow.textContent = "Документы";
   elements.paramModalTitle.textContent = item.label;
   elements.paramModalNote.textContent = item.note || "";
@@ -1503,6 +2351,7 @@ function openParamModal() {
 
 function closeParamModal() {
   elements.paramModal.hidden = true;
+  elements.paramModal.classList.remove("file-modal");
   elements.paramModalBody.innerHTML = "";
   state.map.mode = "move";
   state.currentFileItem = null;
@@ -2020,7 +2869,7 @@ function worldToLatLng(x, y, zoom) {
   return { lat, lng };
 }
 
-function renderImages(project) {
+function renderImagesLegacy(project) {
   elements.imageGrid.innerHTML = "";
   const images = state.currentFileItem ? getItemFiles(project, state.currentFileItem) : project.images;
 
@@ -2049,7 +2898,7 @@ function renderImages(project) {
   });
 }
 
-function renderDocuments(project) {
+function renderDocumentsLegacy(project) {
   elements.documentList.innerHTML = "";
   const documents = state.currentFileItem ? getItemFiles(project, state.currentFileItem) : project.documents;
 
@@ -2192,11 +3041,303 @@ function getFileUrl(file) {
   return "#";
 }
 
+function getFileViewUrl(file) {
+  if (file.dataUrl) {
+    return file.dataUrl;
+  }
+
+  if (file.viewUrl) {
+    return file.viewUrl;
+  }
+
+  if (file.id && state.serverMode) {
+    return `${apiBaseUrl}/files/${file.id}/view?token=${encodeURIComponent(state.apiToken)}`;
+  }
+
+  return getFileUrl(file);
+}
+
+function getFileDownloadUrl(file) {
+  if (file.dataUrl) {
+    return file.dataUrl;
+  }
+
+  if (file.downloadUrl) {
+    return file.downloadUrl;
+  }
+
+  if (file.url) {
+    return file.url;
+  }
+
+  return getFileViewUrl(file);
+}
+
+function getFileTextUrl(file) {
+  if (file.textUrl) {
+    return file.textUrl;
+  }
+
+  if (file.id && state.serverMode) {
+    return `${apiBaseUrl}/files/${file.id}/text?token=${encodeURIComponent(state.apiToken)}`;
+  }
+
+  return "";
+}
+
+function getFilePdfPreviewUrl(file) {
+  if (file.pdfPreviewUrl) {
+    return file.pdfPreviewUrl;
+  }
+
+  if (file.id && state.serverMode) {
+    return `${apiBaseUrl}/files/${file.id}/preview?token=${encodeURIComponent(state.apiToken)}`;
+  }
+
+  return "";
+}
+
+function getFileHtmlPreviewUrl(file) {
+  if (file.htmlPreviewUrl) {
+    return file.htmlPreviewUrl;
+  }
+
+  if (file.id && state.serverMode) {
+    return `${apiBaseUrl}/files/${file.id}/html?token=${encodeURIComponent(state.apiToken)}`;
+  }
+
+  return "";
+}
+
+function canPreviewInline(file) {
+  const type = file.type || "";
+
+  return type.startsWith("image/") || type.startsWith("video/");
+}
+
+function canPreviewAsOriginalDocument(file) {
+  const type = file.type || "";
+  const name = (file.name || "").toLowerCase();
+
+  return (
+    name.endsWith(".doc") ||
+    name.endsWith(".docx") ||
+    name.endsWith(".rtf") ||
+    name.endsWith(".odt") ||
+    name.endsWith(".xls") ||
+    name.endsWith(".xlsx") ||
+    name.endsWith(".ods") ||
+    name.endsWith(".ppt") ||
+    name.endsWith(".pptx") ||
+    name.endsWith(".odp") ||
+    name.endsWith(".pdf") ||
+    type.includes("word") ||
+    type.includes("excel") ||
+    type.includes("powerpoint") ||
+    type.includes("pdf")
+  );
+}
+
+function canPreviewAsText(file) {
+  const type = file.type || "";
+  const name = (file.name || "").toLowerCase();
+
+  return (
+    type.startsWith("text/") ||
+    type === "application/json" ||
+    name.endsWith(".txt") ||
+    name.endsWith(".csv") ||
+    name.endsWith(".json")
+  );
+}
+
+async function openFilePreview(file) {
+  const url = getFileViewUrl(file);
+  if (!url || url === "#") {
+    return;
+  }
+
+  if (!elements.filePreviewModal || !elements.filePreviewBody) {
+    return;
+  }
+
+  const type = file.type || "";
+  const name = file.name || "Файл";
+  const fileKind = getFileKindLabel(file);
+  let previewHtml = "";
+
+  elements.filePreviewType.textContent = fileKind;
+  elements.filePreviewTitle.textContent = name;
+  elements.filePreviewBody.innerHTML = `<div class="file-preview-loading">Загрузка предпросмотра...</div>`;
+  elements.filePreviewModal.hidden = false;
+
+  if (type.startsWith("image/")) {
+    previewHtml = `<img class="file-preview-media" src="${url}" alt="${escapeHtml(name)}" />`;
+  } else if (type.startsWith("video/")) {
+    previewHtml = `<video class="file-preview-media" src="${url}" controls autoplay></video>`;
+  } else if (canPreviewAsOriginalDocument(file)) {
+    if (!state.serverMode) {
+      previewHtml = `
+        <div class="file-preview-fallback">
+          <strong>${escapeHtml(fileKind)}: ${escapeHtml(name)}</strong>
+          <p>Чтобы видеть документ как оригинал внутри сайта, файл должен быть загружен через backend, а на backend должен быть установлен LibreOffice.</p>
+        </div>
+      `;
+    } else {
+    const data = await apiRequest(`/files/${file.id}/html`).catch((error) => ({ error: error.message }));
+    previewHtml = data.html
+      ? `<iframe class="file-preview-frame" sandbox="allow-same-origin" srcdoc="${escapeHtml(data.html)}" title="${escapeHtml(name)}"></iframe>`
+      : `
+          <div class="file-preview-fallback">
+            <strong>${escapeHtml(fileKind)}: ${escapeHtml(name)}</strong>
+            <p>${escapeHtml(data.error || "Не удалось подготовить оригинальный предпросмотр документа.")}</p>
+          </div>
+        `;
+    }
+  } else if (canPreviewInline(file)) {
+    previewHtml = `<iframe class="file-preview-frame" src="${url}" title="${escapeHtml(name)}"></iframe>`;
+  } else if (canPreviewAsText(file)) {
+    try {
+      const textUrl = getFileTextUrl(file);
+      let text = "";
+
+      if (textUrl) {
+        const data = await apiRequest(`/files/${file.id}/text`);
+        text = data.text || "";
+      } else {
+        const response = await fetch(url);
+        const rawText = await response.text();
+        text = name.toLowerCase().endsWith(".rtf") || type.includes("rtf") ? rtfToPlainText(rawText) : rawText;
+      }
+
+      previewHtml = `<article class="file-preview-document"><pre class="file-preview-text">${escapeHtml(text || "Файл пустой.")}</pre></article>`;
+    } catch (error) {
+      console.error(error);
+      previewHtml = `<div class="file-preview-fallback"><strong>${escapeHtml(fileKind)}: ${escapeHtml(name)}</strong><p>Не удалось открыть предпросмотр файла на сайте.</p></div>`;
+    }
+  } else {
+    previewHtml = `
+      <div class="file-preview-fallback">
+        <strong>${escapeHtml(fileKind)}: ${escapeHtml(name)}</strong>
+        <p>Файл сохранён в системе. Этот формат браузер не показывает напрямую внутри сайта без отдельного конвертера.</p>
+      </div>
+    `;
+  }
+
+  elements.filePreviewBody.innerHTML = previewHtml;
+}
+
+function rtfToPlainText(value) {
+  return String(value || "")
+    .replace(/\\par[d]?/g, "\n")
+    .replace(/\\tab/g, "\t")
+    .replace(/\\'[0-9a-fA-F]{2}/g, "")
+    .replace(/\\[a-zA-Z]+\d* ?/g, "")
+    .replace(/[{}]/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function closeFilePreview() {
+  if (!elements.filePreviewModal || !elements.filePreviewBody) {
+    return;
+  }
+
+  elements.filePreviewModal.hidden = true;
+  elements.filePreviewBody.innerHTML = "";
+}
+
+function renderImages(project) {
+  if (!elements.imageGrid) {
+    return;
+  }
+
+  elements.imageGrid.innerHTML = "";
+  const images = state.currentFileItem ? getItemFiles(project, state.currentFileItem) : project.images;
+
+  if (images.length === 0) {
+    elements.imageGrid.innerHTML = `<div class="empty-state"><p>Материалы пока не добавлены.</p></div>`;
+    return;
+  }
+
+  images.forEach((image) => {
+    const tile = document.createElement("div");
+    const isVideo = image.type?.startsWith("video/");
+    const fileUrl = getFileViewUrl(image);
+
+    tile.className = "image-tile";
+    tile.innerHTML = `
+      <button class="file-preview-button" type="button" aria-label="Открыть файл">
+        ${
+          isVideo
+            ? `<video src="${fileUrl}" controls></video>`
+            : `<img src="${fileUrl}" alt="${escapeHtml(image.name)}" />`
+        }
+        <span class="file-preview-caption">${escapeHtml(image.name)}</span>
+      </button>
+      <a class="file-open-chip" href="${fileUrl}" target="_blank" rel="noreferrer">Открыть</a>
+      <button class="icon-button" type="button" aria-label="Удалить файл">×</button>
+    `;
+
+    tile.querySelector(".file-preview-button").addEventListener("click", () => openFilePreview(image));
+    tile.querySelector(".file-open-chip")?.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openFilePreview(image);
+    });
+    tile.querySelector(".icon-button").addEventListener("click", async (event) => {
+      event.stopPropagation();
+      await deleteFile(project, image);
+      renderImages(project);
+    });
+    elements.imageGrid.append(tile);
+  });
+}
+
+function renderDocuments(project) {
+  if (!elements.documentList) {
+    return;
+  }
+
+  elements.documentList.innerHTML = "";
+  const documents = state.currentFileItem ? getItemFiles(project, state.currentFileItem) : project.documents;
+
+  if (documents.length === 0) {
+    elements.documentList.innerHTML = `<div class="empty-state"><p>Файлы пока не добавлены.</p></div>`;
+    return;
+  }
+
+  documents.forEach((documentItem) => {
+    const row = document.createElement("div");
+    const fileUrl = getFileViewUrl(documentItem);
+
+    row.className = "file-row";
+    row.innerHTML = `
+      <button class="file-link-button" type="button">${escapeHtml(documentItem.name)}</button>
+      <span>${formatFileSize(documentItem.size)}</span>
+      <a class="secondary-button" href="${fileUrl}" target="_blank" rel="noreferrer">Открыть</a>
+      <button class="secondary-button danger" type="button">Удалить</button>
+    `;
+
+    row.querySelector(".file-link-button").addEventListener("click", () => openFilePreview(documentItem));
+    row.querySelector("a.secondary-button")?.addEventListener("click", (event) => {
+      event.preventDefault();
+      openFilePreview(documentItem);
+    });
+    row.querySelector(".danger").addEventListener("click", async () => {
+      await deleteFile(project, documentItem);
+      renderDocuments(project);
+    });
+    elements.documentList.append(row);
+  });
+}
+
 function createProject() {
   const now = new Date().toISOString();
 
   return {
     id: createId(),
+    projectKey: "",
     title: "Новый участок",
     summary: "",
     address: "",
@@ -2230,6 +3371,7 @@ function createProject() {
     })),
     createdAt: now,
     updatedAt: now,
+    deletedAt: "",
   };
 }
 
@@ -2346,14 +3488,86 @@ async function deleteProjects(projectIds) {
     for (const id of ids) {
       await apiRequest(`/projects/${id}`, { method: "DELETE" });
     }
+    state.projects = await loadServerProjects();
+    state.trashProjects = await loadServerTrashProjects();
+  } else {
+    const deletedAt = new Date().toISOString();
+    const movingToTrash = state.projects
+      .filter((project) => ids.includes(project.id))
+      .map((project) => ({
+        ...project,
+        deletedAt,
+        deletedBy: state.user?.id || "",
+        deletedByName: state.user?.full_name || state.user?.email || "",
+        deletedByEmail: state.user?.email || "",
+      }));
+    state.trashProjects = [...movingToTrash, ...state.trashProjects];
+    state.projects = state.projects.filter((project) => !ids.includes(project.id));
+    saveLocalProjects();
+    saveLocalTrashProjects();
   }
 
-  state.projects = state.projects.filter((project) => !ids.includes(project.id));
   state.selectedIds.clear();
   state.deleteMode = false;
   state.activeId = state.projects[0]?.id || null;
   state.view = "registry";
-  saveLocalProjects();
+
+  render();
+}
+
+async function restoreProject(projectId) {
+  if (!projectId) {
+    return;
+  }
+
+  if (state.serverMode) {
+    await apiRequest(`/projects/${projectId}/restore`, { method: "POST" });
+    state.projects = await loadServerProjects();
+    state.trashProjects = await loadServerTrashProjects();
+  } else {
+    const project = state.trashProjects.find((item) => item.id === projectId);
+    if (!project) {
+      return;
+    }
+    state.trashProjects = state.trashProjects.filter((item) => item.id !== projectId);
+    state.projects.unshift({
+      ...project,
+      deletedAt: "",
+      deletedBy: "",
+      deletedByName: "",
+      deletedByEmail: "",
+    });
+    saveLocalProjects();
+    saveLocalTrashProjects();
+  }
+
+  state.activeId = state.projects[0]?.id || null;
+  render();
+}
+
+async function clearTrash() {
+  if (state.trashProjects.length === 0) {
+    alert("Корзина уже пуста.");
+    return;
+  }
+
+  if (!canDeleteProjects()) {
+    alert("Очистить корзину может только администратор.");
+    return;
+  }
+
+  if (!confirm("Очистить корзину? Удалённые проекты будут удалены окончательно.")) {
+    return;
+  }
+
+  if (state.serverMode) {
+    await apiRequest("/projects/trash/clear/all", { method: "DELETE" });
+    state.trashProjects = await loadServerTrashProjects();
+    state.projects = await loadServerProjects();
+  } else {
+    state.trashProjects = [];
+    saveLocalTrashProjects();
+  }
 
   render();
 }
@@ -2375,6 +3589,26 @@ function saveLocalProjects() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state.projects));
   } catch {
     alert("Браузер не смог сохранить данные. Обычно это происходит из-за слишком большого объема файлов.");
+  }
+}
+
+function loadLocalTrashProjects() {
+  try {
+    return (JSON.parse(localStorage.getItem(TRASH_STORAGE_KEY)) || []).map(normalizeProject);
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalTrashProjects() {
+  if (state.serverMode) {
+    return;
+  }
+
+  try {
+    localStorage.setItem(TRASH_STORAGE_KEY, JSON.stringify(state.trashProjects));
+  } catch {
+    alert("Браузер не смог сохранить корзину проектов.");
   }
 }
 
@@ -2462,6 +3696,7 @@ async function apiRequest(path, options = {}) {
 function toApiProject(project) {
   return {
     id: project.id,
+    projectKey: project.projectKey || project.project_key || "",
     title: project.title || "Новый участок",
     summary: project.summary || "",
     address: project.address || "",
@@ -2483,6 +3718,7 @@ function fromApiProject(project, files) {
 
   return normalizeProject({
     id: project.id,
+    projectKey: project.project_key || project.projectKey || "",
     title: project.title,
     summary: project.summary,
     address: project.address,
@@ -2500,6 +3736,10 @@ function fromApiProject(project, files) {
     documents: projectFiles.filter((file) => file.kind === "document"),
     createdAt: project.created_at,
     updatedAt: project.updated_at,
+    deletedAt: project.deleted_at || project.deletedAt || "",
+    deletedBy: project.deleted_by || project.deletedBy || "",
+    deletedByName: project.deleted_by_name || project.deletedByName || "",
+    deletedByEmail: project.deleted_by_email || project.deletedByEmail || "",
   });
 }
 
@@ -2512,9 +3752,47 @@ function fromApiFile(file) {
     type: file.type,
     category: file.file_category || "",
     storagePath: file.storage_path,
-    url: `${apiBaseUrl}/files/${file.id}/download?token=${encodeURIComponent(state.apiToken)}`,
+    url: `${apiBaseUrl}/files/${file.id}/view?token=${encodeURIComponent(state.apiToken)}`,
+    viewUrl: `${apiBaseUrl}/files/${file.id}/view?token=${encodeURIComponent(state.apiToken)}`,
+    textUrl: `${apiBaseUrl}/files/${file.id}/text?token=${encodeURIComponent(state.apiToken)}`,
+    pdfPreviewUrl: `${apiBaseUrl}/files/${file.id}/preview?token=${encodeURIComponent(state.apiToken)}`,
+    htmlPreviewUrl: `${apiBaseUrl}/files/${file.id}/html?token=${encodeURIComponent(state.apiToken)}`,
+    downloadUrl: `${apiBaseUrl}/files/${file.id}/download?token=${encodeURIComponent(state.apiToken)}`,
     addedAt: file.created_at,
   };
+}
+
+function renderTrashTable() {
+  if (!elements.trashTableBody) {
+    return;
+  }
+
+  if (state.trashProjects.length === 0) {
+    elements.trashTableBody.innerHTML = `<tr class="empty-row"><td colspan="7">Корзина пуста</td></tr>`;
+    return;
+  }
+
+  elements.trashTableBody.innerHTML = "";
+  state.trashProjects.forEach((project) => {
+    const deletedBy = project.deletedByName || project.deletedByEmail || project.deletedBy || "Не указано";
+    const restoreButton = canDeleteProjects()
+      ? `<button class="secondary-button restore-project-btn" type="button">Восстановить</button>`
+      : `<span class="muted-action">Только просмотр</span>`;
+    const row = document.createElement("tr");
+
+    row.innerHTML = `
+      <td>${escapeHtml(project.projectKey || project.id || "-")}</td>
+      <td>${escapeHtml(project.title || "Без названия")}</td>
+      <td>${formatDate(project.createdAt)}</td>
+      <td>${formatDate(project.deletedAt)}</td>
+      <td>${escapeHtml(deletedBy)}</td>
+      <td>${escapeHtml(project.responsible || "Не назначен")}</td>
+      <td>${restoreButton}</td>
+    `;
+
+    row.querySelector(".restore-project-btn")?.addEventListener("click", () => restoreProject(project.id));
+    elements.trashTableBody.append(row);
+  });
 }
 
 function formatDate(value) {

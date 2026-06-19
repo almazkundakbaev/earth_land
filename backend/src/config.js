@@ -8,6 +8,8 @@ const config = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "12h",
   corsOrigin: process.env.CORS_ORIGIN || "*",
   uploadDir: process.env.UPLOAD_DIR || "uploads",
+  previewDir: process.env.PREVIEW_DIR || "previews",
+  libreOfficePath: process.env.LIBREOFFICE_PATH || "soffice",
 };
 
 module.exports = { config };

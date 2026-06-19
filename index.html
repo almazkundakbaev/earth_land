@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Реестр земельных проектов</title>
-    <link rel="stylesheet" href="styles.css?v=20260612-13" />
+    <link rel="stylesheet" href="styles.css?v=20260619-22" />
   </head>
   <body>
     <section class="auth-view" id="authView">
@@ -29,105 +29,127 @@
     </section>
     <main class="page-shell" id="appShell" hidden>
       <header class="app-header">
-        <button class="header-menu-button" id="headerMenuBtn" type="button" aria-label="Меню">
+        <button class="header-menu-button" id="headerMenuBtn" type="button" aria-label="Меню" aria-expanded="false">
           <span></span>
           <span></span>
           <span></span>
         </button>
-        <div class="header-menu" id="headerMenu" hidden>
-          <button class="header-menu-item" id="signOutBtn" type="button">Выйти из аккаунта</button>
+        <div class="header-menu" id="headerMenu">
+          <div class="header-menu-heading">
+            <img class="sidebar-logo" src="assets/zolo-logo.png?v=20260619-6" alt="ZOLO GROUP" />
+            <button class="header-menu-close" id="headerMenuCloseBtn" type="button" aria-label="Закрыть меню">×</button>
+          </div>
+          <div class="header-menu-label">Меню</div>
+          <button class="header-menu-item" id="menuAccountBtn" type="button">Профиль</button>
+          <button class="header-menu-item" id="menuProjectsBtn" type="button">Проекты</button>
+          <button class="header-menu-item" id="menuUsersBtn" type="button">Пользователи</button>
+          <button class="header-menu-item" id="menuRolesBtn" type="button">Роли</button>
+          <button class="header-menu-item" id="menuTrashBtn" type="button">Корзина</button>
+          <button class="header-menu-item is-danger" id="signOutBtn" type="button">Выйти из аккаунта</button>
         </div>
+        <div class="header-menu-backdrop" id="headerMenuBackdrop" hidden></div>
         <a class="header-brand" href="#" aria-label="ZOLO GROUP">
           <img class="zolo-logo" src="assets/zolo-logo.png?v=20260612-14" alt="ZOLO GROUP" />
         </a>
-        <div class="header-account">
-          <span class="header-account-item">Имя: <strong id="headerUserName">-</strong></span>
-          <span class="header-account-item" id="headerUserLogin">Логин: -</span>
-          <span class="header-account-item" id="headerUserRole">Роль: -</span>
+        <div class="header-search">
+          <input id="globalSearchInput" type="search" placeholder="Поиск по сайту" />
         </div>
+        <button class="header-profile-button" id="headerProfileBtn" type="button" aria-label="Профиль">
+          <span class="header-profile-avatar" id="headerProfileInitials">U</span>
+        </button>
       </header>
-      <section class="panel cabinet-panel" id="cabinetPanel">
-        <div class="panel-heading">
-          <div>
-            <p class="eyebrow">Личный кабинет</p>
-            <h2 id="cabinetTitle">Кабинет</h2>
-          </div>
-          <span class="role-badge" id="cabinetRole">user</span>
-        </div>
-        <div class="cabinet-grid">
-          <div class="cabinet-card">
-            <span>Аккаунт</span>
-            <strong id="cabinetUserEmail">-</strong>
-            <small id="cabinetUserName">-</small>
-          </div>
-          <div class="cabinet-card">
-            <span>Проекты</span>
-            <strong id="cabinetProjects">0</strong>
-            <small>доступно в системе</small>
-          </div>
-          <div class="cabinet-card" id="cabinetUsersCard">
-            <span>Пользователи</span>
-            <strong id="cabinetUsers">0</strong>
-            <small>доступно админу</small>
-          </div>
-        </div>
-        <div class="cabinet-actions">
-          <button class="primary-button" id="goProjectsBtn" type="button">Проекты</button>
-          <button class="secondary-button" id="goUsersBtn" type="button">Пользователи и роли</button>
+      <section class="cabinet-panel account-profile" id="cabinetPanel">
+        <h2 id="cabinetTitle">Профиль</h2>
+        <div class="account-profile-grid">
+          <aside class="profile-card profile-details-card">
+            <div class="profile-main">
+              <div class="profile-avatar" id="accountAvatarInitials">U</div>
+              <label class="profile-upload-button">
+                Загрузить фото
+                <input id="profilePhotoInput" type="file" accept="image/*" />
+              </label>
+              <h3 id="cabinetUserName">-</h3>
+              <label class="profile-description-field">
+                Описание
+                <textarea id="profileDescriptionInput" rows="4" placeholder="Напишите о себе"></textarea>
+              </label>
+            </div>
+            <div class="profile-divider"></div>
+            <section class="profile-block">
+              <h4>Доступ</h4>
+              <p class="profile-role-text" id="cabinetRole">Пользователь</p>
+            </section>
+            <div class="profile-divider"></div>
+            <section class="profile-block">
+              <h4>Данные профиля</h4>
+              <ul class="profile-list">
+                <li><span>Email</span><strong id="accountEmailValue">-</strong></li>
+              </ul>
+            </section>
+            <div class="profile-divider"></div>
+            <section class="profile-block">
+              <h4>Системные данные</h4>
+              <ul class="profile-list">
+                <li><span>ID аккаунта</span><strong id="accountIdValue">-</strong></li>
+                <li><span>Сессия</span><strong id="accountSessionValue">Активна</strong></li>
+              </ul>
+            </section>
+            <div class="profile-divider"></div>
+            <section class="profile-block">
+              <h4>Проекты</h4>
+              <div class="profile-project-list" id="profileProjectList"></div>
+            </section>
+          </aside>
         </div>
       </section>
       <section class="panel user-admin-panel" id="userAdminPanel" hidden>
         <div class="panel-heading">
-          <h2>Пользователи и роли</h2>
-          <button class="secondary-button" id="backToCabinetFromUsersBtn" type="button">Назад в кабинет</button>
+          <div>
+            <h2>Пользователи</h2>
+            <p>Создавайте пользователей, открывайте профиль и редактируйте данные.</p>
+          </div>
         </div>
         <section class="user-management-box">
-          <div class="user-box-heading">
-            <div>
-              <h3>Добавить пользователя</h3>
-              <p>Создайте аккаунт и сразу назначьте нужную роль.</p>
-            </div>
-          </div>
-          <form class="user-create-form" id="createUserForm">
-            <label>
-              ФИО
-              <input id="newUserFullName" type="text" placeholder="Иван Иванов" />
-            </label>
-            <label>
-              Email
-              <input id="newUserEmail" type="email" placeholder="user@example.com" required />
-            </label>
-            <label>
-              Пароль
-              <input id="newUserPassword" type="password" placeholder="Пароль" minlength="8" required />
-              <small>Минимум 8 символов</small>
-            </label>
-            <label>
-              Роль
-              <select id="newUserRole">
-                <option value="user">user</option>
-                <option value="admin">admin</option>
-              </select>
-            </label>
-            <button class="primary-button user-create-submit" type="submit">Создать пользователя</button>
-          </form>
-        </section>
-        <section class="user-management-box">
-          <div class="user-list-heading">
-            <h3>Список и управление пользователями</h3>
+          <div class="user-list-heading user-list-heading-inline">
             <input id="userSearchInput" type="search" placeholder="Поиск" />
+            <button class="primary-button" id="openCreateUserModalBtn" type="button">Добавить пользователя</button>
           </div>
           <div class="user-table-wrap">
-            <table class="user-table">
+            <table class="user-table users-table">
               <thead>
                 <tr>
                   <th>ФИО</th>
                   <th>Email</th>
+                  <th>Доступ</th>
                   <th>Роль</th>
                   <th>Действия</th>
                 </tr>
               </thead>
               <tbody id="userList"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+      <section class="panel roles-admin-panel" id="rolesAdminPanel" hidden>
+        <div class="panel-heading">
+          <h2>Роли</h2>
+        </div>
+        <section class="user-management-box">
+          <div class="user-list-heading">
+            <h3>Список ролей</h3>
+            <input id="roleSearchInput" type="search" placeholder="Поиск" />
+            <button class="primary-button" id="openCreateRoleModalBtn" type="button">Добавить роль</button>
+          </div>
+          <div class="user-table-wrap">
+            <table class="user-table roles-table">
+              <thead>
+                <tr>
+                  <th>Название</th>
+                  <th>Описание</th>
+                  <th>Действия</th>
+                </tr>
+              </thead>
+              <tbody id="roleList"></tbody>
             </table>
           </div>
         </section>
@@ -140,7 +162,6 @@
           </div>
           <div class="registry-actions">
             <div class="registry-main-actions">
-              <button class="secondary-button" id="backToCabinetFromProjectsBtn" type="button">Назад в кабинет</button>
               <input id="searchInput" type="search" placeholder="Поиск по названию, адресу, статусу" />
               <button class="primary-button" id="newProjectBtn" type="button">+ Новый проект</button>
             </div>
@@ -162,10 +183,37 @@
                 <th>Дата создания</th>
                 <th>Ответственный</th>
                 <th>Площадь</th>
-                <th></th>
               </tr>
             </thead>
             <tbody id="projectTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="registry-view trash-view" id="trashView" hidden>
+        <div class="registry-toolbar">
+          <div>
+            <h2>Корзина</h2>
+            <p>Удалённые проекты хранятся здесь и могут быть восстановлены.</p>
+          </div>
+          <div class="registry-actions">
+            <button class="secondary-button danger" id="clearTrashBtn" type="button">Очистить корзину</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="project-table trash-table">
+            <thead>
+              <tr>
+                <th>Ключ</th>
+                <th>Название</th>
+                <th>Дата создания</th>
+                <th>Дата удаления</th>
+                <th>Удалил</th>
+                <th>Ответственный</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody id="trashTableBody"></tbody>
           </table>
         </div>
       </section>
@@ -206,7 +254,7 @@
               </label>
               <label>
                 Ответственный
-                <input id="responsible" name="responsible" placeholder="Имя сотрудника" />
+                <select id="responsible" name="responsible"></select>
               </label>
               <label>
                 Площадь
@@ -225,6 +273,76 @@
       </section>
     </main>
 
+    <div class="modal admin-modal" id="userModal" hidden>
+      <div class="modal-card admin-modal-card">
+        <div class="modal-heading">
+          <div>
+            <p class="eyebrow" id="userModalEyebrow">Пользователь</p>
+            <h2 id="userModalTitle">Добавить пользователя</h2>
+          </div>
+          <button class="secondary-button" id="closeUserModalBtn" type="button">Закрыть</button>
+        </div>
+        <form class="admin-modal-form" id="userModalForm">
+          <label>
+            ФИО
+            <input id="userModalFullName" type="text" placeholder="Иван Иванов" />
+          </label>
+          <label>
+            Email
+            <input id="userModalEmail" type="email" placeholder="user@example.com" required />
+          </label>
+          <label>
+            Пароль
+            <div class="password-field">
+              <input id="userModalPassword" type="password" placeholder="Пароль" minlength="8" />
+              <button id="userPasswordRevealBtn" type="button" aria-label="Показать пароль">◉</button>
+            </div>
+            <small id="userModalPasswordNote">Минимум 8 символов</small>
+          </label>
+          <label>
+            Доступ
+            <select id="userModalAccess">
+              <option value="user">Пользователь</option>
+              <option value="admin">Администратор</option>
+            </select>
+          </label>
+          <label>
+            Роль
+            <select id="userModalCustomRole"></select>
+          </label>
+          <div class="modal-actions">
+            <button class="primary-button" id="saveUserModalBtn" type="submit">Добавить</button>
+          </div>
+        </form>
+        <div class="user-profile-summary" id="userProfileSummary" hidden></div>
+      </div>
+    </div>
+
+    <div class="modal admin-modal" id="roleModal" hidden>
+      <div class="modal-card admin-modal-card">
+        <div class="modal-heading">
+          <div>
+            <p class="eyebrow">Роль</p>
+            <h2 id="roleModalTitle">Добавить роль</h2>
+          </div>
+          <button class="secondary-button" id="closeRoleModalBtn" type="button">Закрыть</button>
+        </div>
+        <form class="admin-modal-form" id="roleModalForm">
+          <label>
+            Название роли
+            <input id="roleModalName" type="text" placeholder="Менеджер проектов" required />
+          </label>
+          <label>
+            Описание
+            <textarea id="roleModalDescription" rows="4" placeholder="Что делает эта роль"></textarea>
+          </label>
+          <div class="modal-actions">
+            <button class="primary-button" id="saveRoleModalBtn" type="submit">Добавить</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <div class="modal" id="paramModal" hidden>
       <div class="modal-card">
         <div class="modal-heading">
@@ -236,6 +354,19 @@
           <button class="secondary-button" id="closeParamModalBtn" type="button">Закрыть</button>
         </div>
         <div id="paramModalBody"></div>
+      </div>
+    </div>
+
+    <div class="modal file-preview-modal" id="filePreviewModal" hidden>
+      <div class="modal-card file-preview-card">
+        <div class="modal-heading">
+          <div>
+            <p class="eyebrow" id="filePreviewType">Файл</p>
+            <h2 id="filePreviewTitle">Просмотр файла</h2>
+          </div>
+          <button class="secondary-button" id="closeFilePreviewBtn" type="button">Закрыть</button>
+        </div>
+        <div class="file-preview-body" id="filePreviewBody"></div>
       </div>
     </div>
 
@@ -275,6 +406,6 @@
     </template>
 
     <script src="api-config.js"></script>
-    <script src="script.js?v=20260612-8"></script>
+    <script src="script.js?v=20260619-22"></script>
   </body>
 </html>
